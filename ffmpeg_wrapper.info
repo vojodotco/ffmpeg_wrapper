@@ -1,0 +1,4 @@
+; $Id$
+name = FFmpeg Wrapper
+description = This is a helper module for modules which wish to implement FFmpeg functions
+package = "Other"
