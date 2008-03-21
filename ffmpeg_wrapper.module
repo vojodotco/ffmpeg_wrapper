@@ -115,7 +115,7 @@ function ffmpeg_wrapper_run_command($options) {
  * @return true if file is in the list of decodeable files
  */
 function ffmpeg_wrapper_can_decode($path){
-  $file_types = _mm_ffmpeg_get_file_formats('decode');
+  $file_types = ffmpeg_wrapper_get_file_formats('decode');
   
   $path_parts = pathinfo($path);
   
