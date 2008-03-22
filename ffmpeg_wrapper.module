@@ -12,6 +12,8 @@
 
 /**
  * Implementation of hook_menu().
+ * @param boolean $may_cache
+ * @return array of menu items
  */
 function ffmpeg_wrapper_menu($may_cache) {
   $items = array();
@@ -381,8 +383,12 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
   );
 
   // check for error conditions    
-  foreach ($errors as $error) { 
-    if ($match = preg_match($error, $output)) {
+  foreach ($errors as $error) {
+  	$matches = array();
+  	preg_match($error, $output, $matches);
+    if ($matches[1]) {
+    	print "REPORTING ERROR";
+    	print $matches[1];
       ffmpeg_wrapper_error_log($output, $file, $command, $watchdog);
       return false;
     }
