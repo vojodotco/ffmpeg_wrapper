@@ -387,8 +387,6 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
   	$matches = array();
   	preg_match($error, $output, $matches);
     if ($matches[1]) {
-    	print "REPORTING ERROR";
-    	print $matches[1];
       ffmpeg_wrapper_error_log($output, $file, $command, $watchdog);
       return false;
     }
