@@ -95,16 +95,24 @@ function ffmpeg_wrapper_admin() {
 /**
  * gets data from ffmpeg
  * @param $options are the options to run ffmpeg with
+ * @param boolean $error_check runs error checking on the output
  * @return output of the command
  */
-function ffmpeg_wrapper_run_command($options) {
+function ffmpeg_wrapper_run_command($options, $error_check = true) {
  $command = variable_get('ffmpeg_wrapper_path', '/opt/ffmpeg/current/bin/ffmpeg') .' '. $options; 
 
  ob_start();
-   passthru($command." 2>&1", $command_return );
+   passthru($command." 2>&1", $command_return);
    $command_output = ob_get_contents();
  ob_end_clean();
  
+ // do error handling if requested
+ if ($error_check) {
+   if (! ffmpeg_wrapper_error_check($command_output, $command, true)){
+     return false;
+   }
+ }
+
  return $command_output; 
 }
 
@@ -361,13 +369,12 @@ function ffmpeg_wrapper_get_codecs_display() {
 /**
  * checks ffmpeg's output for errors and tries to handle them some way
  * @param $output is the output from a shell command
- * @param $file is the input file
  * @param $command is the command run
  * @param $watchdog is boolean, log errors to drupal's watchdog
  * @return true if no errors, false if errors
  * 
  **/
-function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) {
+function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
 
   // build the error conditions
   // these are all pulled by hand at this point
@@ -379,8 +386,7 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
     '/Incorrect frame size/i',
     '/Unsupported codec/i',
     '/Could not write header/i',
-    '/Incorrect frame size/i',
-    '/Incorrect frame size/i',
+    '/sh: [0-9a-zA-Z\/]*: not found/i',
   );
 
   // check for error conditions    
@@ -388,7 +394,7 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
   	$matches = array();
   	preg_match($error, $output, $matches);
     if ($matches[1]) {
-      ffmpeg_wrapper_error_log($output, $file, $command, $watchdog);
+      ffmpeg_wrapper_error_log($output, $command, $watchdog);
       return false;
     }
   }
@@ -406,13 +412,10 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
  * @param boolean $watchdog should we log this?
  */
 function ffmpeg_wrapper_error_log($output, $file, $command, $watchdog){
-  
   // create an error log
-  $message = t('FFmpeg had an error converting this file: %file', array('%file' => $file));
-  $message .= '<br />'. t('The command was: ') . $command;
-  
+  $message = t('FFmpeg had an error converting a file. Command was: @command', array('@command' => $command));  
   if ($watchdog) {
-    watchdog('FFmpeg', $message, 'WATCHDOG_NOTICE');
+    watchdog('FFmpeg', $message, 'WATCHDOG_ERROR');
   }
 }
 
