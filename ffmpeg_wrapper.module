@@ -380,6 +380,7 @@ function ffmpeg_wrapper_error_check($output, $file, $command, $watchdog = true) 
     '/Unsupported codec/i',
     '/Could not write header/i',
     '/Incorrect frame size/i',
+    '/Incorrect frame size/i',
   );
 
   // check for error conditions    
