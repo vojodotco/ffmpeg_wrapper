@@ -102,7 +102,7 @@ function ffmpeg_wrapper_run_command($options, $error_check = true) {
  $command = variable_get('ffmpeg_wrapper_path', '/opt/ffmpeg/current/bin/ffmpeg') .' '. $options; 
 
  ob_start();
-   passthru($command." 2>&1", $command_return);
+   passthru($command ." 2>&1", $command_return);
    $command_output = ob_get_contents();
  ob_end_clean();
  
@@ -125,8 +125,7 @@ function ffmpeg_wrapper_run_command($options, $error_check = true) {
  * @return true if file is in the list of decodeable files
  */
 function ffmpeg_wrapper_can_decode($path){
-  $file_types = ffmpeg_wrapper_get_file_formats('decode');
-  
+  $file_types = ffmpeg_wrapper_get_file_formats('decode');  
   $path_parts = pathinfo($path);
   
   // exception handling  
@@ -157,24 +156,30 @@ function ffmpeg_wrapper_can_decode($path){
 function ffmpeg_wrapper_get_codecs($ret = null) { 
   
   // get formats from ffmpeg
-  $output =  ffmpeg_wrapper_run_command('-formats');
+  $output = ffmpeg_wrapper_run_command('-formats');
  
   // parse the list 
   // we know where the codecs are by looking at the output of ffmpeg -formats
   $codecs_formats_pos = strpos($output, "Codecs:");
-  $codecs_formats_pos_end = strpos($output, "upported file protocols:");
- 
-  $video_formats = substr($output, $codecs_formats_pos, ($codecs_formats_pos_end - $codecs_formats_pos));
- 
-  $video_formats = str_replace('Codecs:', '', $video_formats);
-  $video_formats = explode("\n", $video_formats);
- 
-  foreach ($video_formats as $format) {
+  $codecs_formats_pos_end = strpos($output, "Supported file protocols:");  
+  $codecs = substr($output, $codecs_formats_pos, ($codecs_formats_pos_end - $codecs_formats_pos));  
+  // remove the extra text
+  $codecs = str_replace('Codecs:', '', $codecs);
+  // convert to array
+  $codecs = explode("\n", $codecs);
+
+  foreach ($codecs as $codec) {
    
-    // codec names seem to always be here
-    $a_format['name'] = substr($format, 8);
+    // match the decode, encode, type, S|D|T options (see: http://lists.mplayerhq.hu/pipermail/ffmpeg-user/2006-January/002003.html) 
+    // name
+    $pattern ='/[ ]*([D ])([E ])([ VA])([S ])([ D])([ T])[ ]*([a-zA-Z0-9_,]*)[ ]*([a-zA-Z0-9,_ ]*)/';
+    preg_match($pattern, $codec, $matches);
+
+    // codec names
+    $a_format['name'] = $matches[7];
     
-    if (substr($format, 3, 1) == 'A') {
+    // get the codec type
+    if ($matches[3] == 'A') {
       $a_format['type'] = t('audio');
       $encode_formats[] = $a_format['name'];
     }
@@ -182,8 +187,8 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
       $a_format['type'] = t('video');
     }
     
-    // get the decode
-    if (substr($format, 1, 1) == 'D') {
+    // get the decode value
+    if ($matches[1] == 'D') {
       $a_format['decode'] = t('yes');
       $decode_formats[] = $a_format['name'];
     }
@@ -191,8 +196,8 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
       $a_format['decode'] = t('no');       
     }
    
-    // get the encode
-    if (substr($format, 2, 1) == 'E') {
+    // get the encode value
+    if ($matches[2] == 'E') {
       $a_format['encode'] = t('yes');
       $encode_formats[] = $a_format['name'];
     }
@@ -236,8 +241,8 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
 
     // slice up the format output
     $startpos = strpos($formats, 'File formats:');
-    $endpos = strpos($formats, 'Codecs:');    
-    $formats = substr($formats, $startpos, $endpos);
+    $endpos = strpos($formats, 'Codecs:');
+    $formats = substr($formats, $startpos, $endpos - $startpos);
     
     //remove the header
     $formats = str_replace('File formats:', '', $formats);
@@ -246,41 +251,37 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
  
     $decode_formats = array();
     $encode_formats = array();
-     
+
     foreach ($formats as $format) {
-
-      // only run on lines longer than 3
-      if (! strlen($format) < 3) {
-        // codec names seem to always be here
-        $pattern = '/\s+/';
-        $replace = ' ';      
-        $type = preg_replace($pattern, $replace, substr($format, 4, 19));
-        $type = explode(' ', $type);
-
-        $a_format['type'] = $type[0];
-        $a_format['name'] = $type[1];
+      
+      // match the decode, encode, format, description
+      $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([a-zA-Z0-9,_ ]*)/';
+      preg_match($pattern, $format, $matches);
+      
+      $a_format['type'] = $matches[3];
+      $a_format['name'] = $matches[4];
         
-        if (substr($format, 1, 1) == 'D') {
-          $a_format['decode'] = t('yes');
-          $decode_formats[] = $a_format['type'];
-        }
-        else {
-          $a_format['decode'] = t('no');       
-        }
-       
-        if (substr($format, 2, 1) == 'E') {
-          $a_format['encode'] = t('yes');
-          $encode_formats[] = $a_format['type'];
-        }
-        else {
-          $a_format['encode'] = t('no');          
-        }
-       
-        $a_format['description'] = substr($format, 20);
-        if ($a_format['description']) {     
-          $rows[] = $a_format;
-        }       
+      if ($matches[1] == 'D') {
+        $a_format['decode'] = t('yes');
+        $decode_formats[] = $a_format['type'];
       }
+      else {
+        $a_format['decode'] = t('no');       
+      }
+       
+      if ($matches[2] == 'E') {
+        $a_format['encode'] = t('yes');
+        $encode_formats[] = $a_format['type'];
+      }
+      else {
+        $a_format['encode'] = t('no');          
+      }
+       
+      $a_format['description'] = $matches[4];
+      if ($a_format['description']) {
+        $rows[] = $a_format;
+      }       
+      
     }  
   }
 
@@ -380,8 +381,8 @@ function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
   // these are all pulled by hand at this point
   $errors = array(
     '/Segmentation fault/i',
-    '/Unsupported/i', 
-   //'/Error while/i', // this is not necessarily fatal
+    '/Unsupported/i',
+    '/Unknown format/i', // bad format
     '/Unable for find a suitable output format for/i',
     '/Incorrect frame size/i',
     '/Unsupported codec/i',
@@ -391,10 +392,9 @@ function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
 
   // check for error conditions    
   foreach ($errors as $error) {
-  	$matches = array();
   	preg_match($error, $output, $matches);
-    if ($matches[1]) {
-      ffmpeg_wrapper_error_log($output, $command, $watchdog);
+    if ($matches[0]) {
+      ffmpeg_wrapper_error_log($command, $matches[0], $watchdog);
       return false;
     }
   }
@@ -406,16 +406,14 @@ function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
  * takes error conditions from the conversion process and deals
  * with them according to the admin configuration
  * 
- * @param $output is the command line output
- * @param $file is the file that failed
- * @param $configuration is the configuration that was running
+ * @param string $output is the command line output
+ * @param string $error is the problem being reported
  * @param boolean $watchdog should we log this?
  */
-function ffmpeg_wrapper_error_log($output, $file, $command, $watchdog){
+function ffmpeg_wrapper_error_log($command, $error, $watchdog){
   // create an error log
-  $message = t('FFmpeg had an error converting a file. Command was: @command', array('@command' => $command));  
+  $message = t('FFmpeg failed to convert a file. FFmpeg said: @error Command was: ffmpeg @command', array('@error' => $error, '@command' => $command));  
   if ($watchdog) {
     watchdog('FFmpeg', $message, 'WATCHDOG_ERROR');
   }
 }
-
