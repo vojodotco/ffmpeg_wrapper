@@ -130,7 +130,7 @@ function ffmpeg_wrapper_can_decode($path){
   
   // exception handling  
   // WMVs are sometimes asf files
-  if ($path_parts['extension'] == 'wmv') {$exception = 'asf';}
+  if (preg_match('/wmv/i', $path_parts['extension'])) {$exception = 'asf';}
   
   if ($file_types) { 
     foreach ($file_types as $file_type) {
@@ -307,7 +307,7 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
  */
 function ffmpeg_wrapper_file_duration($path, $timecode) {
   // get duration from ffmpeg
-  $output =  ffmpeg_wrapper_run_command("-i $path");
+  $output = ffmpeg_wrapper_run_command("-i $path");
 
   // parse the output looking for "Duration: 00:02:12"
   $pattern = "/Duration: (.*[0-9:])(\.*[0-9]), start/";
