@@ -84,6 +84,14 @@ function ffmpeg_wrapper_admin() {
     '#description' => t("Absolute path to the FFmpeg exeutable."),
   );
 
+  $form['ffmpeg_wrapper']['ffmpeg_wrapper_vhook'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Path to the FFmpeg vhook libraries'),
+    '#default_value' => variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/'),
+    '#description' => t("Absolute path to the FFmpeg vhook libraries."),
+  );
+  
+  
   return system_settings_form($form);
 }
 
@@ -369,10 +377,14 @@ function ffmpeg_wrapper_get_codecs_display() {
 
 /**
  * checks ffmpeg's output for errors and tries to handle them some way
- * @param $output is the output from a shell command
- * @param $command is the command run
- * @param $watchdog is boolean, log errors to drupal's watchdog
- * @return true if no errors, false if errors
+ * @param string $output 
+ *   is the output from a shell command
+ * @param string $command
+ *   the command run
+ * @param boolean $watchdog
+ *   log errors to drupal's watchdog
+ * @return boolean 
+ *   true if no errors, false if errors
  * 
  **/
 function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
@@ -406,9 +418,12 @@ function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
  * takes error conditions from the conversion process and deals
  * with them according to the admin configuration
  * 
- * @param string $output is the command line output
- * @param string $error is the problem being reported
- * @param boolean $watchdog should we log this?
+ * @param string $output 
+ *   is the command line output
+ * @param string $error 
+ *   is the problem being reported
+ * @param boolean $watchdog 
+ *   should we log this?
  */
 function ffmpeg_wrapper_error_log($command, $error, $watchdog){
   // create an error log
@@ -416,4 +431,16 @@ function ffmpeg_wrapper_error_log($command, $error, $watchdog){
   if ($watchdog) {
     watchdog('FFmpeg', $message, 'WATCHDOG_ERROR');
   }
+}
+
+
+/**
+ * creates a path to the called vhook library
+ * @param string $name
+ * @return full path
+ */
+function ffmpeg_wrapper_path_to_vhook($name) {
+	if ($path = file_exists(variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/') . $name)) {
+		return $path;
+	}	
 }
