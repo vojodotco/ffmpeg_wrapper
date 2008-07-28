@@ -241,6 +241,31 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
 
 
 /**
+ * returns a list of codecs in key value form
+ * @param string $type audio or video
+ * @return array 
+ */
+function ffmpeg_wrapper_return_codecs($type) {
+  static $codecs;
+  if ($codecs[$type]) {
+    return $codecs[$type];
+  }
+  // get list of avaiable audio and video codecs
+  $codec_list = ffmpeg_wrapper_get_codecs();
+  $acodecs = array();
+  $vcodecs = array();
+  if ($codec_list) {
+    foreach ($codec_list as $codec) {
+      if ($codec['encode'] == "yes" && $codec['type'] == $type) { 
+        $codecs[$type][$codec['name']] = $codec['name'];
+      }
+    }
+  }
+  return $codecs[$type];
+}
+    
+    
+/**
  * gets an array of format types usable on this system
  * this should probably be smoothed out so that it doesn't rely on
  * text so much
@@ -458,7 +483,8 @@ function ffmpeg_wrapper_path_to_vhook($name) {
 
 /**
  * takes an output format, returns an array of configuration
- * options. This is a hand built list 
+ * options. This is a hand built list. Will return default options
+ * below to preserver form integrity while switching things
  * @param string $output
  * @return string
  */ 
@@ -469,6 +495,31 @@ function ffmpeg_wrapper_output_rules($output) {
 		require_once($path .'/conf/'. $output .'.conf');
 		return $configuration;
 	}
+
+	// we don't have a configuration setting, load up the defaults
+	// for any thing that we don't have data for. First check 
+	// and see if we have a cache
+	$cache = cache_get('ffmpeg_wrapper_default_output', 'cache');
+	if (unserialize($cache->data)) {
+	  return unserialize($cache->data);
+	}
+	
+	// no cache, build out the default options
+	$default['audio'] = array(
+	  'ab' => array(8 => 8, 16 => 16, 32 => 32, 64 => t('64k (default)'), 128 => 128, 256 => 256),
+	  'ar' => array('11025' => '11khz', '22050' => '22khz', '32000' => '34khz', '44100' => t('44.1khz (default)')),
+	  'acodec' => ffmpeg_wrapper_return_codecs('audio'),
+	);
+	$default['video'] = array(
+	  'fps' => array(0 => 'default', 10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
+	  'br' =>  array('50k' => '50kps', '100k' => '100kps', '150k' => '150kps', '200k' => '200kps', '250k' => '250kps', '300k' => '300kps', '500k' => '500kps', '750k' => '750kps', '1000k' => '1000kps', '1250k' => '1250kps', '1500k' => '1500kps', '2000k' => '2000kps'),
+	  'vcodec' => ffmpeg_wrapper_return_codecs('video'),
+	);
+	$default['default'] = 'default';
+	
+	cache_set('ffmpeg_wrapper_default_output', 'cache', serialize($default), CACHE_TEMPORARY);
+	
+	return $default;	
 }
 
 
@@ -487,13 +538,20 @@ function ffmpeg_wrapper_output_display($output) {
 /**
  * load the js. This is a wrapper function just so other
  * modules can use this
+ * @param string $prefix is the standard prefix to the elements that will be modified
+ * @param string $bind_element is the name of the element (minus the prefix) that will be modifed
+ * @return javascript to head of page
  */
-function ffmpeg_wrapper_enable($bind_element) {
-	  drupal_add_js('
-    $(document).ready(function () {
-      $(#'. $bind_element .').bind(function () { ffmpeg_wrapper_update_options( )  {});
-    }',
+function ffmpeg_wrapper_enable($prefix, $bind_element) {
+  // because of the way drupal handles form element ids, we have to transform
+  // underscores in string to dashes
+  $bind_element = str_replace('_', '-', $bind_element);
+  $prefix = str_replace('_', '-', $prefix);
   
+  drupal_add_js('
+    $(document).ready(function () {
+      $(\'#'. $prefix . $bind_element .'\').bind("change", function () {ffmpeg_wrapper_update_options("'. $prefix .'", "'. $bind_element .'"); });
+    });',  
     'inline');
 	drupal_add_js(array('ffmpeg_wrapper' => array('ffmpeg_wrapper_output_url' => url('ffmpeg_wrapper/output/'))), 'setting');
 	drupal_add_js(drupal_get_path('module', 'ffmpeg_wrapper') .'/ffmpeg_wrapper.js');
