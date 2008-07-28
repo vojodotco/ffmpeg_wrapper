@@ -25,6 +25,13 @@ function ffmpeg_wrapper_menu($may_cache) {
       'callback arguments' => array('ffmpeg_wrapper_admin'),
       'access' => user_access('administer ffmpeg wrapper'),
     );
+    // hand back the specific configurations for a codec
+    $items[] = array(
+      'path' => 'ffmpeg_wrapper/output',
+      'title' => t('FFmpeg Wrapper'),
+      'callback' => 'ffmpeg_wrapper_output_display',    
+      'access' => user_access('access content'),
+    );    
   }
   return $items;
 }
@@ -443,4 +450,51 @@ function ffmpeg_wrapper_path_to_vhook($name) {
 	if ($path = file_exists(variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/') . $name)) {
 		return $path;
 	}	
+}
+
+/* ************************************************** */
+/* handle requests for configurations                 */
+/* ************************************************** */
+
+/**
+ * takes an output format, returns an array of configuration
+ * options. This is a hand built list 
+ * @param string $output
+ * @return string
+ */ 
+function ffmpeg_wrapper_output_rules($output) {
+	// check to see if we have a configuration for this
+	$path = drupal_get_path('module', 'ffmpeg_wrapper');
+	if (file_exists($path .'/conf/'. $output .'.conf')) {
+		require_once($path .'/conf/'. $output .'.conf');
+		return $configuration;
+	}
+}
+
+
+function ffmpeg_wrapper_output_display($output) {
+  // get the output rules for this 
+  if ($rules = ffmpeg_wrapper_output_rules($output)) {
+    // now build the JSON out
+    print(drupal_to_js($rules));
+  	//print_r($rules);
+  	exit();
+  }
+  exit();
+}
+
+
+/**
+ * load the js. This is a wrapper function just so other
+ * modules can use this
+ */
+function ffmpeg_wrapper_enable($bind_element) {
+	  drupal_add_js('
+    $(document).ready(function () {
+      $(#'. $bind_element .').bind(function () { ffmpeg_wrapper_update_options( )  {});
+    }',
+  
+    'inline');
+	drupal_add_js(array('ffmpeg_wrapper' => array('ffmpeg_wrapper_output_url' => url('ffmpeg_wrapper/output/'))), 'setting');
+	drupal_add_js(drupal_get_path('module', 'ffmpeg_wrapper') .'/ffmpeg_wrapper.js');
 }
