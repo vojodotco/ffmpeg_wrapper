@@ -263,8 +263,49 @@ function ffmpeg_wrapper_return_codecs($type) {
   }
   return $codecs[$type];
 }
-    
-    
+
+
+/**
+ * helper function to build the list of output formats 
+ * on the system
+ *
+ * @return array of key values
+ */
+function ffmpeg_wrapper_output_formats() {
+	static $formats;
+	if (! $formats) {
+		// get all the encoding options		
+    $outputs = ffmpeg_wrapper_get_file_formats('encode');
+    // rebuild as a select array
+    $formats[0] = t('Please select');
+    foreach ($outputs as $output){
+      $formats[$output] = $output;      
+    }
+	}
+  return $formats;
+}
+
+/**
+ * builds the output rates for each type of bit rate that 
+ * ffmpeg offers
+ *
+ * @param string $type
+ * @return array of key values
+ */
+function ffmpeg_wrapper_output_rates($type) {
+	static $rates;	
+	if (! $rates) {
+		$rates = array (		
+	   'ab'  => array(8 => 8, 16 => 16, 32 => 32, 64 => t('64k (default)'), 128 => 128, 192 => 192, 256 => 256),
+	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('34khz'), '44100' => t('44.1khz (default)') ),
+     'fps' => array(0 => 'default', 10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
+     'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
+ 		);
+	}	
+	return $rates[$type];	
+}
+
+
 /**
  * gets an array of format types usable on this system
  * this should probably be smoothed out so that it doesn't rely on
@@ -486,6 +527,7 @@ function ffmpeg_wrapper_path_to_vhook($name) {
  * options. This is a hand built list. Will return default options
  * below to preserver form integrity while switching things
  * @param string $output
+ *   this is an output type (eg: flv, avi, mp4, etc)
  * @return string
  */ 
 function ffmpeg_wrapper_output_rules($output) {
@@ -506,13 +548,13 @@ function ffmpeg_wrapper_output_rules($output) {
 	
 	// no cache, build out the default options
 	$default['audio'] = array(
-	  'ab' => array(8 => 8, 16 => 16, 32 => 32, 64 => t('64k (default)'), 128 => 128, 256 => 256),
-	  'ar' => array('11025' => '11khz', '22050' => '22khz', '32000' => '34khz', '44100' => t('44.1khz (default)')),
+	  'ab' => ffmpeg_wrapper_output_rates('ab'),
+	  'ar' => ffmpeg_wrapper_output_rates('ar'),
 	  'acodec' => ffmpeg_wrapper_return_codecs('audio'),
 	);
 	$default['video'] = array(
-	  'fps' => array(0 => 'default', 10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
-	  'br' =>  array('50k' => '50kps', '100k' => '100kps', '150k' => '150kps', '200k' => '200kps', '250k' => '250kps', '300k' => '300kps', '500k' => '500kps', '750k' => '750kps', '1000k' => '1000kps', '1250k' => '1250kps', '1500k' => '1500kps', '2000k' => '2000kps'),
+	  'fps' => ffmpeg_wrapper_output_rates('fps'),
+	  'br' =>  ffmpeg_wrapper_output_rates('br'),
 	  'vcodec' => ffmpeg_wrapper_return_codecs('video'),
 	);
 	$default['default'] = 'default';
@@ -522,14 +564,18 @@ function ffmpeg_wrapper_output_rules($output) {
 	return $default;	
 }
 
-
+/**
+ * this displays the output rules as json 
+ * 
+ * @param string $output
+ *   this is an output type (eg: flv, avi, mp4, etc)
+ * @return json
+ */
 function ffmpeg_wrapper_output_display($output) {
   // get the output rules for this 
   if ($rules = ffmpeg_wrapper_output_rules($output)) {
     // now build the JSON out
     print(drupal_to_js($rules));
-  	//print_r($rules);
-  	exit();
   }
   exit();
 }
@@ -555,4 +601,224 @@ function ffmpeg_wrapper_enable($prefix, $bind_element) {
     'inline');
 	drupal_add_js(array('ffmpeg_wrapper' => array('ffmpeg_wrapper_output_url' => url('ffmpeg_wrapper/output/'))), 'setting');
 	drupal_add_js(drupal_get_path('module', 'ffmpeg_wrapper') .'/ffmpeg_wrapper.js');
+}
+
+
+/* ************************************************** */
+/* ffmpeg_wrapper forms                               */
+/* ************************************************** */
+
+/**
+ * This builds a generic form for any module to implement 
+ * ffmpeg configuration. This will give any module the ajax 
+ * form configuration updates. Validation and submission need
+ * to be handled by the calling module- this only builds the form
+ * call this form inside your form function
+ * 
+ * @param array $configuration 
+ *   is configuration data- could be $form_values
+ * @param string $prefix 
+ *   is a prefix for the form elelements, needed for javascript activation on 
+ *   complex forms (eg: media mover)
+ * @return array 
+ *   drupal form array
+ */
+function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
+	        
+  // enable the javascript configuration options on the output type to use AJAX
+  // to update the allowed values
+  ffmpeg_wrapper_enable($form_prefix, 'ffmpeg_output_type');
+    
+  $form['ffmpeg_wrapper'] = array(
+    '#type' => 'fieldset',
+    '#title' => t("FFmpeg video conversion settings"),
+    '#collapsed' => false,
+  );
+    
+  // build the output formats
+  $form['ffmpeg_wrapper']['ffmpeg_output_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Output format'),
+    '#options' => ffmpeg_wrapper_output_formats(),
+    '#default_value' => $configuration['ffmpeg_output_type'],
+    '#description' => t('Select the output format. Note, some formats may require setting audio or video codecs.'),   
+  );
+  
+  // ---------------------------------------------
+  // Audio options
+  $form['ffmpeg_wrapper']['audio'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Audio conversion settings'),
+    '#collapsed' => $configuration['ffmpeg_audio_advanced'] ? false : true,
+    '#collapsible' => true,
+  );
+  $form['ffmpeg_wrapper']['audio']['ffmpeg_audio_advanced'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use advanced settings'),
+    '#description' => t('Use the advanced audio encoding options. If this is off, FFmpeg will encode at a rate similar to the source material.'),
+    '#default_value' => $configuration['ffmpeg_audio_advanced'],
+  );  
+  $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_ab"] = array(
+    '#type' => 'select',
+    '#title' => t('Audio bit rate'),
+    '#options' => ffmpeg_wrapper_output_rates('ab'),
+    '#default_value' => $configuration['ffmpeg_audio_ab'] ? $configuration['ffmpeg_audio_ab'] :  64,
+    '#description' => t("Audio bit rate for conversion file."),
+  );
+  $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_ar"] = array(
+    '#type' => 'select',
+    '#title' => t('Audio sample rate'),
+    '#options' => ffmpeg_wrapper_output_rates('ar'),
+    '#default_value' => $configuration['ffmpeg_audio_ar'] ? $configuration['ffmpeg_audio_ar'] : 44100,
+    '#description' => t('Audio sample rate for conversion.'),
+  );  
+  // set the audio codec in use
+  $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_acodec"] = array(
+    '#type' => 'select',
+    '#title' => t('Audio codec'),
+    '#options' => ffmpeg_wrapper_return_codecs('audio'),
+    '#default_value' => $configuration['ffmpeg_audio_acodec'] ? $configuration['ffmpeg_audio_acodec'] : null ,
+    '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate video codec for the transcoding. WARNING the codec support right now is experimental. Things may not work as expected.'),   
+  );
+  
+  // -------------------------------------------
+  // Video options
+  $form['ffmpeg_wrapper']['video'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Video conversion settings'),
+    '#collapsed' => $configuration['ffmpeg_video_advanced'] ? false : true,
+    '#collapsible' => true,
+  );
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_advanced'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use advanced settings'),
+    '#description' => t('Use the advanced video encoding options. If this is off, FFmpeg will encode flv at 200 kb/s, 128x96, 25fps.'),
+    '#default_value' => $configuration['ffmpeg_video_advanced'],
+  );    
+  // video frame size
+  $frame_size = mm_ffmpeg_frame_sizes();
+  $frame_size['other'] = t('Other');
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_size'] = array(
+    '#type' => 'select',
+    '#title' => t('Video frame size'),
+    '#options' => $frame_size,
+    '#default_value' => $configuration['ffmpeg_video_size'],
+    '#description' => t('Dimensions of the converted video. Use the <em>Other</em> option to define your custom size.'),
+    '#attributes' => array('class' => 'ffmpeg-video-size'),
+    '#validate' => array('mm_ffmpeg_config_video_size_validate' => array('ffmpeg_video_size')),
+  );
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_size_other'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Video frame (Other) size'),
+    '#default_value' => $configuration['ffmpeg_video_size_other'],
+    '#description' => t('Dimensions of the converted video, of the format 600x400.'),
+    '#prefix' => '<div class="ffmpeg-video-size-other">',
+    '#suffix' => '</div>',
+    '#validate' => array('mm_ffmpeg_config_video_size_validate' => array('ffmpeg_video_size_other')),
+    '#size' => 12,
+  );
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_fps'] = array(
+    '#type' => 'select',
+    '#title' => t('Video fps rate'),
+    '#options' => ffmpeg_wrapper_output_rates('fps'),
+    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : 25,
+    '#description' => t("Sets the frames per second of the converted video."),
+  );    
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_br'] = array(
+    '#type' => 'select',
+    '#title' => t('Video bit rate'),
+    '#options' => ffmpeg_wrapper_output_rates('br'),
+    '#default_value' => $configuration['ffmpeg_video_br'],
+    '#description' => t('Target the output video to this bit rate.'),
+  );    
+  $form['ffmpeg_wrapper']['video']['ffmpeg_video_vcodec'] = array(
+    '#type' => 'select',
+    '#title' => t('Video codec'),
+    '#options' => ffmpeg_wrapper_return_codecs('video'),
+    '#default_value' => $configuration['ffmpeg_video_vcodec'],
+    '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate audio codec for the transcoding.'),   
+  );  
+  
+  
+  $form['ffmpeg_wrapper']['time'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Video duration'),
+    '#collapsed' => $configuration['ffmpeg_time_advanced'] ? false : true,
+    '#collapsible' => true,
+  );
+  $form['ffmpeg_wrapper']['time']['ffmpeg_time_advanced'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Truncate the output video'),
+    '#description' => t('Use this to limit the length of the output video. Useful for making a video teaser'),
+    '#default_value' => $configuration['ffmpeg_time_advanced'],
+  );
+  $times = array(30 => "30 seconds", 60 => "1 minute", 120 => "2 minutes", 300 => "5 minutes");
+  $form['ffmpeg_wrapper']['time']["ffmpeg_time"] = array(
+    '#type' => 'select',
+    '#title' => t('Video length'),
+    '#options' => $times,
+    '#default_value' => $configuration['ffmpeg_time'],
+    '#description' => t("Set the max video length time."),
+  );
+  
+  // FFmpeg custom command
+  $form['ffmpeg_wrapper']['custom'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Custom FFmpeg command'),
+    '#collapsed' => $configuration['ffmpeg_video_custom'] ? false : true,
+    '#collapsible' => true,
+  );
+  $form['ffmpeg_wrapper']['custom']["ffmpeg_video_custom"] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use custom FFmpeg command'),
+    '#description' => t('Use the custom FFmpeg command in the textfield below.'),
+    '#default_value' => $configuration['ffmpeg_video_custom'],
+  );
+  $form['ffmpeg_wrapper']['custom']["ffmpeg_video_custom_command"] = array(
+    '#type' => 'textfield',
+    '#title' => t('Custom FFmpeg command'),
+    '#description' => t('You can craft your own FFmpeg command. Please see the FFmpeg documentation for correct syntax. The command will replace <em>%in_file</em> and <em>%out_file</em> with the generated files. Please note, you can not use | or > in your commands.'),
+    '#default_value' => $configuration['ffmpeg_video_custom_command'] ? $configuration['ffmpeg_video_custom_command'] : '-i %in_file %out_file',
+  );
+    
+  // Watermarking options
+  // only display if we have access to the watermarking files
+  if (ffmpeg_wrapper_path_to_vhook('watermark.so')) {    
+    $form['ffmpeg_wrapper']['watermark'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Video watermark settings'),
+      '#collapsed' => $configuration['ffmpeg_video_wm'] ? false : true,
+      '#collapsible' => true,
+    );
+    $form['ffmpeg_wrapper']['watermark']['ffmpeg_video_wm'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Use watermark'),
+      '#description' => t('Use a file to watermark the converted video.'),
+      '#default_value' => $configuration['ffmpeg_video_wm'],
+    );
+    // @ TODO make this a file upload
+    $form['ffmpeg_wrapper']['watermark']['ffmpeg_video_wm_file'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Path to file'),
+      '#description' => t('Absolute path to the watermark file.'),
+      '#default_value' => $configuration['ffmpeg_video_wm_file'],
+    );
+  }
+
+  // file chmod settings, maybe legacy..... 
+  $form['ffmpeg_wrapper']['file'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('File settings'),
+    '#collapsed' => true,
+    '#collapsible' => true,
+  );
+  $form['ffmpeg_wrapper']['file']["ffmpeg_output_perms"] = array(
+    '#type' => 'textfield',
+    '#title' => t('Output file permissions'),
+    '#description' => t('Set the permissions on the output file. Default is 0644.'),
+    '#default_value' => $configuration['ffmpeg_output_perms'] ? $configuration['ffmpeg_output_perms'] : '0644' ,
+    '#size' => 4,
+  );
+
+  return $form;
 }

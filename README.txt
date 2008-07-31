@@ -44,4 +44,11 @@ Where ffmpeg is always used, audio is for audio options (video is the other
 possibility) and ab is the ffmpeg command for setting the audio bit rate.
 Again, mm_ffmpeg offers a good example of how to do this.
 
+Alternatively, you can just use 
+$form[] = ffmpeg_wrapper_configuration_form($prefix, $configuration) to
+build a form from ffmpeg_wrapper. You will need to handle your own validation
+and submission, but outside of handing the size:other options, this is
+very easy. Going this route gives you the ajax form configuration straight
+away.
+
 
