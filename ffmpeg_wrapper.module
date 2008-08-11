@@ -56,50 +56,87 @@ function ffmpeg_wrapper_admin() {
     '#title' => t('FFmpeg'),
   );
 
-  $form['ffmpeg_wrapper']['mm_ffmpeg_about'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('About FFmpeg installation'),
-    '#collapsible' => true,
-    '#collapsed' => true,
-  );
-  
-  $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_version'] = array(
-    '#type' => 'item',
-    '#title' => t('FFmpeg version'),
-    '#value' =>  '<blockquote>'. ffmpeg_wrapper_run_command(' -v') .'</blockquote>',
-    '#description' => t('Version of FFmpeg running on your system'),
-  ); 
-  
-  $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_formats'] = array(
-    '#type' => 'item',
-    '#title' => t('Supported file formats'),
-    '#value' =>  ffmpeg_wrapper_formats_data_display(),
-    '#description' => t('File formats that the installed version of FFmpeg supports.'),
-  ); 
-  
-  $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_codecs'] = array(
-    '#type' => 'item',
-    '#title' => t('Installed codecs'),
-    '#value' => ffmpeg_wrapper_get_codecs_display(),
-    '#description' => t('FFmpeg was either compiled with these codecs, or these are the codecs available on your system'),
-  ); 
-
   $form['ffmpeg_wrapper']['ffmpeg_wrapper_path'] = array(
     '#type' => 'textfield',
     '#title' => t('FFmpeg path'),
     '#default_value' => variable_get('ffmpeg_wrapper_path', '/usr/bin/ffmpeg'),
-    '#description' => t("Absolute path to the FFmpeg exeutable."),
+    '#description' => t('Absolute path to the FFmpeg exeutable. Leave blank if you do not need this.'),
   );
 
   $form['ffmpeg_wrapper']['ffmpeg_wrapper_vhook'] = array(
     '#type' => 'textfield',
     '#title' => t('Path to the FFmpeg vhook libraries'),
-    '#default_value' => variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/'),
-    '#description' => t("Absolute path to the FFmpeg vhook libraries."),
+    '#default_value' => variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook'),
+    '#description' => t('Absolute path to the FFmpeg vhook directory. No trailing slash. Leave blank if you do not need this'),
   );
   
+  // configuration options
+  // only display if we can reach the binary 
+  if (ffmpeg_wrapper_run_command('')) {
+    $form['ffmpeg_wrapper']['mm_ffmpeg_about'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('About FFmpeg installation'),
+      '#collapsible' => true,
+      '#collapsed' => true,
+    );
+    
+    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_version'] = array(
+      '#type' => 'item',
+      '#title' => t('FFmpeg version'),
+      '#value' =>  '<blockquote>'. ffmpeg_wrapper_run_command(' -v') .'</blockquote>',
+      '#description' => t('Version of FFmpeg running on your system'),
+    ); 
+    
+    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_formats'] = array(
+      '#type' => 'item',
+      '#title' => t('Supported file formats'),
+      '#value' =>  ffmpeg_wrapper_formats_data_display(),
+      '#description' => t('File formats that the installed version of FFmpeg supports.'),
+    ); 
+    
+    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_codecs'] = array(
+      '#type' => 'item',
+      '#title' => t('Installed codecs'),
+      '#value' => ffmpeg_wrapper_get_codecs_display(),
+      '#description' => t('FFmpeg was either compiled with these codecs, or these are the codecs available on your system'),
+    ); 
+  }
   
+  // get a list of the vhooks in the system
+  if (ffmpeg_wrapper_vhook_list()) {
+    $form['ffmpeg_wrapper']['mm_ffmpeg_vhooks'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('vhook files installed on this system'),
+      '#collapsible' => true,
+      '#collapsed' => true,
+    );
+    $form['ffmpeg_wrapper']['mm_ffmpeg_vhooks']['mm_ffmpeg_vhook'] = array(
+      '#type' => 'item',
+      '#title' => t('vhook files'),
+      '#value' =>  implode('<br />', ffmpeg_wrapper_vhook_list()),
+      '#description' => t('List of all the Vhook files found.'),
+    ); 
+  }
   return system_settings_form($form);
+}
+
+
+/**
+ * validate the options on the ffmpeg form
+ *
+ * @param int $form_id
+ * @param array $form_values
+ */
+function ffmpeg_wrapper_admin_validate($form_id, $form_values) {
+  // make sure we've got the path to the ffmpeg binary
+  if (! ffmpeg_wrapper_run_command(null, false, $form_values['ffmpeg_wrapper_path']) && $form_values['ffmpeg_wrapper_path']) {
+    form_set_error('ffmpeg_wrapper_path', t('FFmpeg binary was not found on the path you specified. Maybe try a different path?'));
+  }
+  
+  // check and see if we can find the vhook directory
+  if (! is_dir($form_values['ffmpeg_wrapper_vhook']) && $form_values['ffmpeg_wrapper_vhook']) {
+    form_set_error('ffmpeg_wrapper_vhook', t('The vhook directory was not found on the path you specified. Maybe try a different path?'));
+  }
 }
 
 /* ************************************************ */
@@ -109,26 +146,73 @@ function ffmpeg_wrapper_admin() {
 
 /**
  * gets data from ffmpeg
- * @param $options are the options to run ffmpeg with
+ * @param string $options are the options to run ffmpeg with
  * @param boolean $error_check runs error checking on the output
+ * @param string $path overrides the system settings
  * @return output of the command
  */
-function ffmpeg_wrapper_run_command($options, $error_check = true) {
- $command = variable_get('ffmpeg_wrapper_path', '/opt/ffmpeg/current/bin/ffmpeg') .' '. $options; 
-
- ob_start();
-   passthru($command ." 2>&1", $command_return);
-   $command_output = ob_get_contents();
- ob_end_clean();
+function ffmpeg_wrapper_run_command($options, $error_check = true, $path) {
+  if (! $path) {
+    $path = variable_get('ffmpeg_wrapper_path', '/usr/bin/ffmpeg');
+  }
+  
+  $command =  $path .' '. $options; 
+  
+  // does binary exist?
+  if (! file_exists($path)) {
+    return false;
+  }
  
- // do error handling if requested
- if ($error_check) {
-   if (! ffmpeg_wrapper_error_check($command_output, $command, true)){
-     return false;
-   }
- }
+  ob_start();
+    passthru($command ." 2>&1", $command_return);
+    $command_output = ob_get_contents();
+  ob_end_clean();
+ 
+  // do error handling if requested
+  if ($error_check) {
+    if (! ffmpeg_wrapper_error_check($command_output, $command, true)){
+      return false;
+    }
+  }
 
- return $command_output; 
+  return $command_output; 
+}
+
+/**
+ * builds a list of the ffmpeg vhook options installed on this machine
+ *
+ * @param string $path
+ * @return array
+ */
+function ffmpeg_wrapper_vhook_list($path) {
+  static $files;
+  
+  // if we have a list already
+  if ($files) { 
+     return $files;
+  }
+  
+  // build the path
+  if (! $path) {
+    $path = variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook');    
+  }
+  
+  // check to see if the directory is correct
+  if (is_dir($path)) {
+    // open the directory
+    if ($dir = opendir($path)) {
+      while (($file = readdir($dir)) !== false) {
+        // do not this or parrent directory
+        if ($file != "." && $file != "..") { 
+          $files[] = $path .'/'. $file;        
+        }
+      }
+      closedir($dir);
+    }
+    if (count($files)) {
+      return $files;
+    }   
+  }
 }
 
 
@@ -588,7 +672,7 @@ function ffmpeg_wrapper_output_display($output) {
  * @param string $bind_element is the name of the element (minus the prefix) that will be modifed
  * @return javascript to head of page
  */
-function ffmpeg_wrapper_enable($prefix, $bind_element) {
+function ffmpeg_wrapper_enable($prefix, $bind_element = '') {
   // because of the way drupal handles form element ids, we have to transform
   // underscores in string to dashes
   $bind_element = str_replace('_', '-', $bind_element);
