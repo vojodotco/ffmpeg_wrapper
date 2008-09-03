@@ -381,7 +381,7 @@ function ffmpeg_wrapper_output_rates($type) {
 	if (! $rates) {
 		$rates = array (		
 	   'ab'  => array(8 => 8, 16 => 16, 32 => 32, 64 => t('64k (default)'), 128 => 128, 192 => 192, 256 => 256),
-	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('34khz'), '44100' => t('44.1khz (default)') ),
+	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('32khz'), '44100' => t('44.1khz (default)') ),
      'fps' => array(10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
      'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
  		);
