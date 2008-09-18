@@ -409,6 +409,17 @@ function ffmpeg_wrapper_output_rates($type) {
 	return $rates[$type];	
 }
 
+/**
+* Output dimentions form settings.
+* @return
+*   An array of frame sizes.
+*/
+function ffmpeg_wrapper_frame_sizes(){
+  $frame_sizes = drupal_map_assoc(array('128x96', '176x144', '320x240', '352x288', '512x386', '704x576'));
+  $frame_sizes['other'] = t('Other');
+  return $frame_sizes;
+}
+
 
 /**
  * Get an array of format types usable on this system.
@@ -821,8 +832,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#default_value' => $configuration['ffmpeg_video_advanced'],
   );    
   // video frame size
-  $frame_size = mm_ffmpeg_frame_sizes();
-  $frame_size['other'] = t('Other');
+  $frame_size = ffmpeg_wrapper_frame_sizes();
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_size'] = array(
     '#type' => 'select',
     '#title' => t('Video frame size'),
