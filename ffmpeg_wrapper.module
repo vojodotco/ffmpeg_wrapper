@@ -148,7 +148,7 @@ function ffmpeg_wrapper_admin_validate($form_id, $form_values) {
  * @param string $path overrides the system settings
  * @return output of the command
  */
-function ffmpeg_wrapper_run_command($options, $error_check = true, $path) {
+function ffmpeg_wrapper_run_command($options, $error_check = true, $path = '') {
   if (! $path) {
     $path = variable_get('ffmpeg_wrapper_path', '/usr/bin/ffmpeg');
   }
@@ -194,7 +194,7 @@ function ffmpeg_wrapper_run_command($options, $error_check = true, $path) {
  * @param string $path
  * @return array
  */
-function ffmpeg_wrapper_vhook_list($path) {
+function ffmpeg_wrapper_vhook_list($path = '') {
   static $files;
   
   // if we have a list already
@@ -675,7 +675,7 @@ function ffmpeg_wrapper_output_rules($output) {
 	// we don't have a configuration setting, load up the defaults
 	// for any thing that we don't have data for. First check 
 	// and see if we have a cache
-	//$cache = cache_get('ffmpeg_wrapper_default_output', 'cache');
+	$cache = cache_get('ffmpeg_wrapper_default_output', 'cache');
 	if (unserialize($cache->data)) {
 	  return unserialize($cache->data);
 	}
