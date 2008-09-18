@@ -351,7 +351,7 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
  */
 function ffmpeg_wrapper_return_codecs($type) {
   static $codecs;
-  if ($codecs[$type]) {
+  if (! empty($codecs[$type])) {
     return $codecs[$type];
   }
   // get list of avaiable audio and video codecs
