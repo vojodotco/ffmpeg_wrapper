@@ -12,8 +12,6 @@
 
 /**
  * Implementation of hook_menu().
- * @param boolean $may_cache
- * @return array of menu items
  */
 function ffmpeg_wrapper_menu($may_cache) {
   $items = array();
@@ -38,7 +36,7 @@ function ffmpeg_wrapper_menu($may_cache) {
 
 
 /**
- * implementation of hook_perm()
+ * Implementation of hook_perm().
  */
 function ffmpeg_wrapper_perm() {
   return array('administer ffmpeg wrapper');
@@ -46,8 +44,7 @@ function ffmpeg_wrapper_perm() {
 
 
 /**
- * builds the admin form
- * @return drupal form array
+ * Build the admin form.
  */
 function ffmpeg_wrapper_admin() {
 
@@ -139,10 +136,10 @@ function ffmpeg_wrapper_admin_validate($form_id, $form_values) {
   }
 }
 
+
 /* ************************************************ */
 /* FFmpeg Wrapper Functions  */
 /* ************************************************ */
-
 
 /**
  * gets data from ffmpeg
@@ -175,8 +172,21 @@ function ffmpeg_wrapper_run_command($options, $error_check = true, $path) {
     }
   }
 
+  ob_start();
+    passthru($command ." 2>&1", $command_return);
+    $command_output = ob_get_contents();
+  ob_end_clean();
+ 
+  // do error handling if requested
+  if ($error_check) {
+    if (! ffmpeg_wrapper_error_check($command_output, $command, true)){
+      return false;
+    }
+  }
+
   return $command_output; 
 }
+
 
 /**
  * builds a list of the ffmpeg vhook options installed on this machine
@@ -218,18 +228,22 @@ function ffmpeg_wrapper_vhook_list($path) {
 
 
 /**
- * checks an incoming file path extension to
- * see if it can be decoded 
- * @param $file is a full system filepath
- * @return true if file is in the list of decodeable files
+ * Check an incoming file path extension to see if it can be decoded.
+ * 
+ * @param $file
+ *   A full system filepath.
+ * @return
+ *   TRUE if file is in the list of decodeable files.
  */
-function ffmpeg_wrapper_can_decode($path){
+function ffmpeg_wrapper_can_decode($path) {
   $file_types = ffmpeg_wrapper_get_file_formats('decode');  
   $path_parts = pathinfo($path);
   
   // exception handling  
   // WMVs are sometimes asf files
-  if (preg_match('/wmv/i', $path_parts['extension'])) {$exception = 'asf';}
+  if (preg_match('/wmv/i', $path_parts['extension'])) {
+    $exception = 'asf';
+  }
   
   if ($file_types) { 
     foreach ($file_types as $file_type) {
@@ -245,12 +259,15 @@ function ffmpeg_wrapper_can_decode($path){
 
 
 /**
- * gets an array of codec types usable on this system
- * this should probably be smoothed out so that it doesn't rely on
- * text so much
+ * Get an array of codec types usable on this system.
+ * This should probably be smoothed out so that it doesn't rely on text so
+ * much.
  * @ TODO this needs to be rethought to pass params right
- * @param string $ret determins hand back of encode/decode
- * @return is array of codecs or specific encode/decode options
+ * 
+ * @param $ret
+ *   Determins hand back of encode/decode.
+ * @return
+ *   Array of codecs or specific encode/decode options.
  */
 function ffmpeg_wrapper_get_codecs($ret = null) { 
   
@@ -325,9 +342,12 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
 
 
 /**
- * returns a list of codecs in key value form
- * @param string $type audio or video
- * @return array 
+ * Get a list of codecs in key value form.
+ * 
+ * @param $type
+ *   Audio or video.
+ * @return 
+ *   Array of codec names.
  */
 function ffmpeg_wrapper_return_codecs($type) {
   static $codecs;
@@ -350,10 +370,10 @@ function ffmpeg_wrapper_return_codecs($type) {
 
 
 /**
- * helper function to build the list of output formats 
- * on the system
+ * Helper function to build the list of output formats on the system.
  *
- * @return array of key values
+ * @return
+ *   Array of key values
  */
 function ffmpeg_wrapper_output_formats() {
 	static $formats;
@@ -362,7 +382,7 @@ function ffmpeg_wrapper_output_formats() {
     $outputs = ffmpeg_wrapper_get_file_formats('encode');
     // rebuild as a select array
     $formats[0] = t('Please select');
-    foreach ($outputs as $output){
+    foreach ($outputs as $output) {
       $formats[$output] = $output;      
     }
 	}
@@ -391,11 +411,14 @@ function ffmpeg_wrapper_output_rates($type) {
 
 
 /**
- * gets an array of format types usable on this system
- * this should probably be smoothed out so that it doesn't rely on
- * text so much
- * @param string $ret determins what to hand back (encode/decode)
- * @return array of options
+ * Get an array of format types usable on this system.
+ * This should probably be smoothed out so that it doesn't rely on text so
+ * much.
+ * 
+ * @param $ret
+ *   Determins what to hand back (encode/decode).
+ * @return
+ *   Array of options.
  */
 function ffmpeg_wrapper_get_file_formats($ret = null) { 
   static $rows, $encode_formats, $decode_formats;
@@ -465,10 +488,14 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
 
 
 /**
- * this gets the duration of a video
- * @param string $path is the path to file
- * @param boolean $timecode return time code or seconds
- * @return int is the duration in seconds or timecode as string
+ * Get the duration of a video.
+ * 
+ * @param $path
+ *   The path to file.
+ * @param $timecode
+ *   If TRUE, return time code, otherwise return seconds.
+ * @return
+ *   Duration in seconds as an integer or timecode as string.
  */
 function ffmpeg_wrapper_file_duration($path, $timecode) {
   // get duration from ffmpeg
@@ -501,10 +528,12 @@ function ffmpeg_wrapper_file_duration($path, $timecode) {
 
 
 /**
- * checks to make sure that FFmpeg is in the path
- * @return boolean
+ * Check to make sure that FFmpeg is in the path.
+ * 
+ * @return
+ *   TRUE if FFmpeg can be executed, FALSE otherwise.
  */
-function ffmpeg_wrapper_executable(){
+function ffmpeg_wrapper_executable() {
   if (! ffmpeg_wrapper_run_command('')) {
     return false;     
   }
@@ -513,7 +542,10 @@ function ffmpeg_wrapper_executable(){
 
 
 /**
- * displays a table of the supported ffmpeg file formats
+ * Display a table of the supported ffmpeg file formats.
+ * 
+ * @return
+ *   The themed HTML form.
  */
 function ffmpeg_wrapper_formats_data_display() {
   $header = array(t('name'), t('type'), t('decode'), t('encode'), t('description') );
@@ -523,7 +555,10 @@ function ffmpeg_wrapper_formats_data_display() {
 
 
 /**
- * displays a table of the ffmpeg encoding and decoding options
+ * Display a table of the ffmpeg encoding and decoding options.
+ * 
+ * @return
+ *   The themed HTML form.
  */
 function ffmpeg_wrapper_get_codecs_display() {
   $header = array(t('codec'), t('codec type'), t('decode'), t('encode'));
@@ -533,15 +568,16 @@ function ffmpeg_wrapper_get_codecs_display() {
 
 
 /**
- * checks ffmpeg's output for errors and tries to handle them some way
- * @param string $output 
- *   is the output from a shell command
- * @param string $command
- *   the command run
- * @param boolean $watchdog
- *   log errors to drupal's watchdog
- * @return boolean 
- *   true if no errors, false if errors
+ * Check FFmpeg's output for errors and try to handle them some way.
+ * 
+ * @param $output
+ *   The output from a shell command.
+ * @param $command
+ *   The command run.
+ * @param $watchdog
+ *   If TRUE, log errors to Drupal's watchdog.
+ * @return
+ *   TRUE if no errors, FALSE if errors.
  * 
  **/
 function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
@@ -572,17 +608,17 @@ function ffmpeg_wrapper_error_check($output, $command, $watchdog = true) {
 
 
 /**
- * takes error conditions from the conversion process and deals
- * with them according to the admin configuration
+ * Take error conditions from the conversion process and deal
+ * with them according to the admin configuration.
  * 
- * @param string $output 
- *   is the command line output
- * @param string $error 
- *   is the problem being reported
- * @param boolean $watchdog 
- *   should we log this?
+ * @param $output
+ *   The command line output.
+ * @param $error
+ *   The problem being reported.
+ * @param $watchdog
+ *   If TRUE, log errors to Drupal's watchdog.
  */
-function ffmpeg_wrapper_error_log($command, $error, $watchdog){
+function ffmpeg_wrapper_error_log($command, $error, $watchdog) {
   // create an error log
   $message = t('FFmpeg failed to convert a file. FFmpeg said: @error Command was: ffmpeg @command', array('@error' => $error, '@command' => $command));  
   if ($watchdog) {
@@ -592,9 +628,12 @@ function ffmpeg_wrapper_error_log($command, $error, $watchdog){
 
 
 /**
- * creates a path to the called vhook library
- * @param string $name
- * @return full path
+ * Create a path to the called vhook library.
+ * 
+ * @param $name
+ *   The name of the vhook library.
+ * @return
+ *   A full path.
  */
 function ffmpeg_wrapper_path_to_vhook($name) {
 	if ($path = file_exists(variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/') . $name)) {
@@ -649,11 +688,10 @@ function ffmpeg_wrapper_output_rules($output) {
 }
 
 /**
- * this displays the output rules as json 
+ * Display the output rules as json.
  * 
- * @param string $output
- *   this is an output type (eg: flv, avi, mp4, etc)
- * @return json
+ * @param $output
+ *   An output type (eg: flv, avi, mp4, etc).
  */
 function ffmpeg_wrapper_output_display($output) {
   // get the output rules for this 
@@ -666,11 +704,12 @@ function ffmpeg_wrapper_output_display($output) {
 
 
 /**
- * load the js. This is a wrapper function just so other
- * modules can use this
- * @param string $prefix is the standard prefix to the elements that will be modified
- * @param string $bind_element is the name of the element (minus the prefix) that will be modifed
- * @return javascript to head of page
+ * Load the js. This is a wrapper function just so other modules can use this.
+ * 
+ * @param $prefix
+ *   The standard prefix to the elements that will be modified.
+ * @param $bind_element
+ *   The name of the element (minus the prefix) that will be modifed.
  */
 function ffmpeg_wrapper_enable($prefix, $bind_element = '') {
   // because of the way drupal handles form element ids, we have to transform
@@ -696,19 +735,18 @@ function ffmpeg_wrapper_enable($prefix, $bind_element = '') {
 /* ************************************************** */
 
 /**
- * This builds a generic form for any module to implement 
- * ffmpeg configuration. This will give any module the ajax 
- * form configuration updates. Validation and submission need
- * to be handled by the calling module- this only builds the form
- * call this form inside your form function
- * 
- * @param array $configuration 
- *   is configuration data- could be $form_values
- * @param string $prefix 
- *   is a prefix for the form elelements, needed for javascript activation on 
- *   complex forms (eg: media mover)
+ * Build a generic form for any module to implementm ffmpeg configuration.
+ * This will give any module the ajax form configuration updates. 
+ * Validation and submission need to be handled by the calling module - this 
+ * only builds the form call this form inside your form function.
+ *
+ * @param $configuration
+ *   An array of configuration data - could be $form_values.
+ * @param $prefix
+ *   A prefix for the form elelements, needed for javascript activation on
+ *   complex forms (eg: media mover).
  * @return array 
- *   drupal form array
+ *   A Drupal form array.
  */
 function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
 	        
@@ -825,8 +863,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#default_value' => $configuration['ffmpeg_video_vcodec'],
     '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate audio codec for the transcoding.'),   
   );  
-  
-  
+    
   $form['ffmpeg_wrapper']['time'] = array(
     '#type' => 'fieldset',
     '#title' => t('Video duration'),
