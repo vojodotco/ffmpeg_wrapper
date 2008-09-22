@@ -13,25 +13,22 @@
 /**
  * Implementation of hook_menu().
  */
-function ffmpeg_wrapper_menu($may_cache) {
+function ffmpeg_wrapper_menu() {
   $items = array();
-  if ($may_cache) { 
-    $items[] = array(
-      'path' => 'admin/settings/ffmpeg_wrapper',
-      'title' => t('FFmpeg Wrapper settings'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('ffmpeg_wrapper_admin'),
-      'access' => user_access('administer ffmpeg wrapper'),
-    );
-    // hand back the specific configurations for a codec
-    $items[] = array(
-      'path' => 'ffmpeg_wrapper/output',
-      'title' => t('FFmpeg Wrapper'),
-      'callback' => 'ffmpeg_wrapper_output_display',    
-      'access' => user_access('access content'),
-    );    
-  }
-  return $items;
+  $items['admin/settings/ffmpeg_wrapper'] = array(
+    'title' => 'FFmpeg Wrapper',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ffmpeg_wrapper_admin'),
+    'access arguments' => array('administer ffmpeg wrapper'),
+  );
+  // hand back the specific configurations for a codec
+  $items['ffmpeg_wrapper/output'] = array(
+    'title' => 'FFmpeg Wrapper',
+    'page callback' => 'ffmpeg_wrapper_output_display',
+    'page arguments' => array(2),  
+    'access arguments' => array('access content'),
+  );    
+    return $items;
 }
 
 
@@ -124,14 +121,14 @@ function ffmpeg_wrapper_admin() {
  * @param int $form_id
  * @param array $form_values
  */
-function ffmpeg_wrapper_admin_validate($form_id, $form_values) {
+function ffmpeg_wrapper_admin_validate($form, &$form_state) {
   // make sure we've got the path to the ffmpeg binary
-  if (! ffmpeg_wrapper_run_command(null, false, $form_values['ffmpeg_wrapper_path']) && $form_values['ffmpeg_wrapper_path']) {
+  if (! ffmpeg_wrapper_run_command(null, false, $form_state['values']['ffmpeg_wrapper_path']) && $form_values['ffmpeg_wrapper_path']) {
     form_set_error('ffmpeg_wrapper_path', t('FFmpeg binary was not found on the path you specified. Maybe try a different path?'));
   }
   
   // check and see if we can find the vhook directory
-  if (! is_dir($form_values['ffmpeg_wrapper_vhook']) && $form_values['ffmpeg_wrapper_vhook']) {
+  if (! is_dir($form_state['values']['ffmpeg_wrapper_vhook']) && $form_state['values']['ffmpeg_wrapper_vhook']) {
     form_set_error('ffmpeg_wrapper_vhook', t('The vhook directory was not found on the path you specified. Maybe try a different path?'));
   }
 }
@@ -342,10 +339,10 @@ function ffmpeg_wrapper_get_codecs($ret = null) {
 
 
 /**
- * Get a list of codecs in key value form.
+ * Get a list of codecs in key value form- for use in form display
  * 
  * @param $type
- *   Audio or video.
+ *   audio or video.
  * @return 
  *   Array of codec names.
  */
@@ -354,10 +351,11 @@ function ffmpeg_wrapper_return_codecs($type) {
   if (! empty($codecs[$type])) {
     return $codecs[$type];
   }
+  $codecs = array();
+  $codecs['audio'] = array(0 => t('Choose codec'));
+  $codecs['video'] = array(0 => t('Choose codec'));
   // get list of avaiable audio and video codecs
   $codec_list = ffmpeg_wrapper_get_codecs();
-  $acodecs = array();
-  $vcodecs = array();
   if ($codec_list) {
     foreach ($codec_list as $codec) {
       if ($codec['encode'] == "yes" && $codec['type'] == $type) { 
@@ -381,13 +379,14 @@ function ffmpeg_wrapper_output_formats() {
 		// get all the encoding options		
     $outputs = ffmpeg_wrapper_get_file_formats('encode');
     // rebuild as a select array
-    $formats[0] = t('Please select');
+    $formats[0] = t('Select output type');
     foreach ($outputs as $output) {
       $formats[$output] = $output;      
     }
 	}
   return $formats;
 }
+
 
 /**
  * builds the output rates for each type of bit rate that 
@@ -400,7 +399,7 @@ function ffmpeg_wrapper_output_rates($type) {
 	static $rates;	
 	if (! $rates) {
 		$rates = array (		
-	   'ab'  => array(8 => 8, 16 => 16, 32 => 32, 64 => t('64k (default)'), 128 => 128, 192 => 192, 256 => 256),
+	   'ab'  => array('16k' => '16k', '22k' => '22k', '32k' => '32k', '64k' => t('64k (default)'), '128k' => '128k', '192k' => '192k', '256k' => '256k'),
 	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('32khz'), '44100' => t('44.1khz (default)') ),
      'fps' => array(10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
      'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
@@ -408,6 +407,7 @@ function ffmpeg_wrapper_output_rates($type) {
 	}	
 	return $rates[$type];	
 }
+
 
 /**
 * Output dimentions form settings.
@@ -675,10 +675,10 @@ function ffmpeg_wrapper_output_rules($output) {
 	// we don't have a configuration setting, load up the defaults
 	// for any thing that we don't have data for. First check 
 	// and see if we have a cache
-	$cache = cache_get('ffmpeg_wrapper_default_output', 'cache');
-	if (unserialize($cache->data)) {
-	  return unserialize($cache->data);
-	}
+  $cache = cache_get('ffmpeg_wrapper_default_output');
+  if (is_array($cache->data)) {
+    return $cache->data;
+  }
 	
 	// no cache, build out the default options
 	$default['audio'] = array(
@@ -693,7 +693,7 @@ function ffmpeg_wrapper_output_rules($output) {
 	);
 	$default['default'] = 'default';
 	
-	cache_set('ffmpeg_wrapper_default_output', 'cache', serialize($default), CACHE_TEMPORARY);
+	cache_set('ffmpeg_wrapper_default_output', $default, 'cache', CACHE_TEMPORARY);
 	
 	return $default;	
 }
@@ -798,7 +798,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#type' => 'select',
     '#title' => t('Audio bit rate'),
     '#options' => ffmpeg_wrapper_output_rates('ab'),
-    '#default_value' => $configuration['ffmpeg_audio_ab'] ? $configuration['ffmpeg_audio_ab'] :  64,
+    '#default_value' => $configuration['ffmpeg_audio_ab'] ? $configuration['ffmpeg_audio_ab'] :  '64k',
     '#description' => t("Audio bit rate for conversion file."),
   );
   $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_ar"] = array(
@@ -809,11 +809,11 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#description' => t('Audio sample rate for conversion.'),
   );  
   // set the audio codec in use
-  $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_acodec"] = array(
+  $form['ffmpeg_wrapper']['audio']['ffmpeg_audio_acodec'] = array(
     '#type' => 'select',
     '#title' => t('Audio codec'),
     '#options' => ffmpeg_wrapper_return_codecs('audio'),
-    '#default_value' => $configuration['ffmpeg_audio_acodec'] ? $configuration['ffmpeg_audio_acodec'] : null ,
+    '#default_value' => $configuration['ffmpeg_audio_acodec'] ? $configuration['ffmpeg_audio_acodec'] : 0 ,
     '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate video codec for the transcoding. WARNING the codec support right now is experimental. Things may not work as expected.'),   
   );
   
@@ -870,7 +870,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#type' => 'select',
     '#title' => t('Video codec'),
     '#options' => ffmpeg_wrapper_return_codecs('video'),
-    '#default_value' => $configuration['ffmpeg_video_vcodec'],
+    '#default_value' => $configuration['ffmpeg_video_vcodec'] ? $configuration['ffmpeg_video_vcodec'] : 0,
     '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate audio codec for the transcoding.'),   
   );  
     
