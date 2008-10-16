@@ -352,8 +352,7 @@ function ffmpeg_wrapper_return_codecs($type) {
     return $codecs[$type];
   }
   $codecs = array();
-  $codecs['audio'] = array(0 => t('Choose codec'));
-  $codecs['video'] = array(0 => t('Choose codec'));
+  $codecs[$type] = array(0 => t('Choose codec'));
   // get list of avaiable audio and video codecs
   $codec_list = ffmpeg_wrapper_get_codecs();
   if ($codec_list) {
@@ -402,7 +401,7 @@ function ffmpeg_wrapper_output_rates($type) {
 	   'ab'  => array('16k' => '16k', '22k' => '22k', '32k' => '32k', '64k' => t('64k (default)'), '128k' => '128k', '192k' => '192k', '256k' => '256k'),
 	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('32khz'), '44100' => t('44.1khz (default)') ),
      'fps' => array(10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
-     'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
+     'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps (default)'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
  		);
 	}	
 	return $rates[$type];	
@@ -872,7 +871,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
     '#options' => ffmpeg_wrapper_return_codecs('video'),
     '#default_value' => $configuration['ffmpeg_video_vcodec'] ? $configuration['ffmpeg_video_vcodec'] : 0,
     '#description' => t('Select the codec for the output format. Please note, you may need to pick an appropriate audio codec for the transcoding.'),   
-  );  
+  );
     
   $form['ffmpeg_wrapper']['time'] = array(
     '#type' => 'fieldset',
