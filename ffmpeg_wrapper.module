@@ -633,7 +633,7 @@ function ffmpeg_wrapper_error_log($command, $error, $watchdog) {
   // create an error log
   $message = t('FFmpeg failed to convert a file. FFmpeg said: @error Command was: ffmpeg @command', array('@error' => $error, '@command' => $command));  
   if ($watchdog) {
-    watchdog('FFmpeg', $message, 'WATCHDOG_ERROR');
+    watchdog('FFmpeg Wrapper', $message, null, WATCHDOG_ERROR);
   }
 }
 
