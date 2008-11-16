@@ -2,9 +2,11 @@
 
 /* $Id$ */
 
-// This implements a wrapper for FFmpeg so that we don't have to reinvent the 
-// the wheel everytime we want to do soemthing with video, audio, or images
-
+/**
+ * @file
+ * This implements a wrapper for FFmpeg so that we don't have to reinvent the 
+ * the wheel everytime we want to do soemthing with video, audio, or images.
+ */
 
 /* ************************************************ */
 /* DRUPAL HOOKS */
@@ -139,11 +141,16 @@ function ffmpeg_wrapper_admin_validate($form, &$form_state) {
 /* ************************************************ */
 
 /**
- * gets data from ffmpeg
- * @param string $options are the options to run ffmpeg with
- * @param boolean $error_check runs error checking on the output
- * @param string $path overrides the system settings
- * @return output of the command
+ * Get data from ffmpeg.
+ * 
+ * @param $options
+ *   The options to run ffmpeg with.
+ * @param $error_check
+ *   If TRUE, runs error checking on the output.
+ * @param $path 
+ *   Overrides the system settings.
+ * @return
+ *   Output of the command.
  */
 function ffmpeg_wrapper_run_command($options, $error_check = true, $path = '') {
   if (! $path) {
@@ -390,11 +397,12 @@ function ffmpeg_wrapper_output_formats() {
 
 
 /**
- * builds the output rates for each type of bit rate that 
- * ffmpeg offers
+ * Build the output rates for each type of bit rate that ffmpeg offers.
  *
- * @param string $type
- * @return array of key values
+ * @param $type
+ *   Type of bit rate: "ab", "ar", "fps" or "br".
+ * @return
+ *   Array of key values.
  */
 function ffmpeg_wrapper_output_rates($type) {
 	static $rates;	
@@ -658,12 +666,14 @@ function ffmpeg_wrapper_path_to_vhook($name) {
 /* ************************************************** */
 
 /**
- * takes an output format, returns an array of configuration
- * options. This is a hand built list. Will return default options
- * below to preserver form integrity while switching things
- * @param string $output
- *   this is an output type (eg: flv, avi, mp4, etc)
- * @return string
+ * Take an output format and return an array of configuration options.
+ * This is a hand built list. Will return default options below to preserve
+ * form integrity while switching things.
+ * 
+ * @param $output
+ *   An output type (eg: flv, avi, mp4, etc).
+ * @return
+ *   Array of configuration options.
  */ 
 function ffmpeg_wrapper_output_rules($output) {
 	// check to see if we have a configuration for this
