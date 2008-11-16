@@ -204,6 +204,8 @@ function ffmpeg_wrapper_vhook_list($path = '') {
     $path = variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook');    
   }
   
+  // @TODO replace below with file_scan_directory($path);
+    
   // check to see if the directory is correct
   if (is_dir($path)) {
     // open the directory
@@ -721,7 +723,7 @@ function ffmpeg_wrapper_output_display($output) {
  * @param $bind_element
  *   The name of the element (minus the prefix) that will be modifed.
  */
-function ffmpeg_wrapper_enable($prefix, $bind_element = '') {
+function ffmpeg_wrapper_enable_js($prefix, $bind_element = '') {
   // because of the way drupal handles form element ids, we have to transform
   // underscores in string to dashes
   $bind_element = str_replace('_', '-', $bind_element);
@@ -762,7 +764,7 @@ function ffmpeg_wrapper_configuration_form($configuration, $form_prefix = '' ) {
 	        
   // enable the javascript configuration options on the output type to use AJAX
   // to update the allowed values
-  ffmpeg_wrapper_enable($form_prefix, 'ffmpeg_output_type');
+  ffmpeg_wrapper_enable_js($form_prefix, 'ffmpeg_output_type');
     
   $form['ffmpeg_wrapper'] = array(
     '#type' => 'fieldset',
