@@ -517,7 +517,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode) {
   $output = ffmpeg_wrapper_run_command("-i $path");
 
   // parse the output looking for "Duration: 00:02:12"
-  $pattern = "/Duration: (.*[0-9:])(\.*[0-9]), start/";
+  $pattern = "/Duration: ([0-9]+:[0-9]+:[0-9]+)\.[0-9]+/";
   preg_match($pattern, $output, $matches);
 
   $time = $matches[1];
@@ -527,13 +527,14 @@ function ffmpeg_wrapper_file_duration($path, $timecode) {
     // get the time into an array
     $time = explode(':', $time);
     
+    $seconds = 0;
+    if ($time[0] != '00') {
+      $seconds += $time[0] * 60 * 60;
+    }
     if ($time[1] != '00') {
-      $seconds = $seconds + ($time[0] * 60);
+      $seconds += $time[1] * 60;
     }
-    if ($time[2] != '00') {
-      $seconds = $seconds + ($time[1] * (60*60));
-    }
-    $seconds = $seconds + $time[2];
+    $seconds += $time[2];
     
     $time = $seconds;
   }
