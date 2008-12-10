@@ -241,7 +241,7 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
     $ffmpeg_object = new stdClass();
   }
 
-  $ffmpeg_object->command = $path .' '. $command;
+  $ffmpeg_object->command = escapeshellcmd($path .' '. $command);
   $ffmpeg_object->cwd = getcwd();
 
   // does binary exist?
@@ -700,6 +700,8 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
     '/.*does not support that sample rate.*/i',
     // match: Error while opening codec for output stream #0.1 - maybe incorrect parameters such as bit_rate, rate, width or height
     '/Error while opening codec for output stream.*/i',
+    // match: I/O error occured
+    '/I\/O error occured/i',
   );
 
   // check for error conditions
