@@ -176,7 +176,7 @@ function ffmpeg_wrapper_form_alter(&$form, $form_state, $form_id) {
   }
 
   // Are there attached files?
-  if ($files = $form['attachments']['wrapper']['files']) {
+  if (isset($form['attachments']) && $files = $form['attachments']['wrapper']['files']) {
     foreach ($files as $fid => $file) {
       // check to make sure this is a file array and if this file is decodeable by ffmpeg
       // we are dealing with a form element, so we have to make sure that this is the part that we want
@@ -356,8 +356,10 @@ function ffmpeg_wrapper_can_decode($path) {
  */
 function ffmpeg_wrapper_get_codecs($return = 'rows') {
   $cache_id = 'ffmpeg_wrapper_codecs';
-  $data = cache_get($cache_id, 'cache');
-  if (! $data = $data->data) {
+  $cache = cache_get($cache_id, 'cache');
+  if (!isset($cache->data)) {
+    $data = array();
+    
     // get formats from ffmpeg
     $output = ffmpeg_wrapper_run_command('-formats');
 
@@ -371,6 +373,7 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
     // convert to array
     $codecs = explode("\n", $codecs);
 
+    $rows = array();
     foreach ($codecs as $codec) {
       // match the decode, encode, type, S|D|T options (see: http://lists.mplayerhq.hu/pipermail/ffmpeg-user/2006-January/002003.html)
       // name
@@ -417,6 +420,9 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
     $data['rows'] = $rows;
     cache_set($cache_id, $data, 'cache', CACHE_TEMPORARY);
   }
+  else {
+    $data = $cache->data;
+  }
 
   return $data[$return];
 }
@@ -459,16 +465,19 @@ function ffmpeg_wrapper_return_codecs($type) {
  */
 function ffmpeg_wrapper_output_formats() {
   $cache_id = 'ffmpeg_wrapper_output_formats';
-  $formats = cache_get($cache_id, 'cache');
-  if (! $formats = $formats->data) {
+  $cache = cache_get($cache_id, 'cache');
+  if (!isset($cache->data)) {
     // get all the encoding options
     $outputs = ffmpeg_wrapper_get_file_formats('encode');
     // rebuild as a select array
-    $formats[0] = t('Select output type');
+    $formats = array(t('Select output type'));
     foreach ($outputs as $output) {
       $formats[$output] = $output;
     }
     cache_set($cache_id, $formats, 'cache', CACHE_TEMPORARY);
+  }
+  else {
+    $formats = $cache->data;
   }
   return $formats;
 }
@@ -529,9 +538,9 @@ function ffmpeg_wrapper_frame_sizes(){
  */
 function ffmpeg_wrapper_get_file_formats($ret = null) {
   $cache_id = 'ffmpeg_wrapper_file_formats';
-  $output = cache_get($cache_id, 'cache');
+  $cache = cache_get($cache_id, 'cache');
   // do we have cached data?
-  if (! $output = $output->data) {
+  if (!isset($cache->data)) {
     // if we can't get formats, do not bother
     if (! $formats = ffmpeg_wrapper_run_command('-formats') ) {
       return;
@@ -548,6 +557,7 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
     $decode_formats = array();
     $encode_formats = array();
 
+    $rows = array();
     foreach ($formats as $format) {
       // match the decode, encode, format, description
       $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([a-zA-Z0-9,_ ]*)/';
@@ -577,10 +587,14 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
         $rows[] = $a_format;
       }
     }
+    $output = array();
     $output['encode'] = $encode_formats;
     $output['decode'] = $decode_formats;
     $output['row'] = $rows;
     cache_set($cache_id, $output, 'cache', CACHE_TEMPORARY);
+  }
+  else {
+    $output = $cache->data;
   }
 
   // return the requested data
