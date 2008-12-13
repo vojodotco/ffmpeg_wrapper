@@ -35,7 +35,6 @@ function ffmpeg_wrapper_menu() {
     'page callback' => 'ffmpeg_wrapper_output_display',
     'page arguments' => array(2),
     'access arguments' => array('access content'),
-
   );
 
   // testing utilities
@@ -52,6 +51,14 @@ function ffmpeg_wrapper_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('ffmpeg_wrapper_test_cleanup_form'),
     'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer ffmpeg wrapper'),
+    'file' => 'ffmpeg_wrapper_test_convert.inc',
+  );
+
+  // hand back the specific configurations for a codec
+  $items['ffmpeg_wrapper/file_data'] = array(
+    'title' => 'FFmpeg Wrapper',
+    'page callback' => 'ffmpeg_wrapper_file_type_js',
     'access arguments' => array('administer ffmpeg wrapper'),
     'file' => 'ffmpeg_wrapper_test_convert.inc',
   );
@@ -210,6 +217,9 @@ function ffmpeg_wrapper_theme() {
     'ffmpeg_wrapper_files_checkboxes' => array(
       'arguments' => array('form' => NULL),
     ),
+    'ffmpeg_wrapper_files_radios' => array(
+      'arguments' => array('form' => NULL),
+    ),
   );
 }
 
@@ -359,7 +369,7 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
   $cache = cache_get($cache_id, 'cache');
   if (!isset($cache->data)) {
     $data = array();
-    
+
     // get formats from ffmpeg
     $output = ffmpeg_wrapper_run_command('-formats');
 
@@ -442,7 +452,7 @@ function ffmpeg_wrapper_return_codecs($type) {
     return $codecs[$type];
   }
   $codecs = array();
-  $codecs[$type] = array(0 => t('Choose codec'));
+  $codecs[$type] = array(0 => t('Use default'));
   // get list of avaiable audio and video codecs
   $codec_list = ffmpeg_wrapper_get_codecs();
   if ($codec_list) {
@@ -612,7 +622,7 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
  * @return
  *   Duration in seconds as an integer or timecode as string.
  */
-function ffmpeg_wrapper_file_duration($path, $timecode) {
+function ffmpeg_wrapper_file_duration($path, $timecode = null) {
   // get duration from ffmpeg
   $output = ffmpeg_wrapper_run_command("-i $path");
 
@@ -638,6 +648,53 @@ function ffmpeg_wrapper_file_duration($path, $timecode) {
     $time = $seconds;
   }
   return $time;
+}
+
+
+/**
+ * This function produces file data from an incoming file
+ * @param $path
+ * @param $timecode
+ * @return unknown_type
+ */
+function ffmpeg_wrapper_file_data($path = null) {
+  if ($path) {
+    // get duration from ffmpeg
+    $output = ffmpeg_wrapper_run_command("-i $path");
+
+    // get file format
+    $pattern = '/Input #0, (.*),/';
+    preg_match($pattern, $output, $matches);
+    $file['format'] = $matches[1];
+
+    // get file duration
+    $file['duration'] = ffmpeg_wrapper_file_duration($path);
+
+    // get bit rate
+    $pattern = "/bitrate: ([0-9]*)/";
+    preg_match($pattern, $output, $matches);
+    $file['bitrate'] = $matches[1];
+
+    // get audio settings
+    // format is: codec, sample rate, stereo/mono, bitrate
+    $pattern = "/Audio: (.*), ([0-9]*) Hz, (.*), ([0-9]*)/";
+    preg_match($pattern, $output, $matches);
+    $file['audio']['codec'] = $matches[1];
+    $file['audio']['ar'] = $matches[2];
+    $file['audio']['ac'] = $matches[3] == 'stereo' ? 2 : 1;
+    $file['audio']['ab'] = $matches[4];
+
+    // get video settings
+    // format is: codec, filetype?, frame size, kb/s
+    $pattern = "/Video: (.*), (.*), ([0-9x]*) \[.*\], ([0-9]*)/";
+    preg_match($pattern, $output, $matches);
+    $file['video']['codec'] = $matches[1];
+    // $file['video']['type'] = $matches[2];
+    $file['video']['s'] = $matches[3];
+    $file['video']['br'] = $matches[4];
+
+    return $file;
+  }
 }
 
 
@@ -898,7 +955,7 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
   $form['ffmpeg_wrapper']['audio'] = array(
     '#type' => 'fieldset',
     '#title' => t('Audio conversion settings'),
-    '#collapsed' => $configuration['ffmpeg_audio_advanced'] ? false : true,
+    '#collapsed' => $configuration['ffmpeg_audio_advanced'] ? true : false,
     '#collapsible' => true,
   );
   $form['ffmpeg_wrapper']['audio']['ffmpeg_audio_advanced'] = array(
