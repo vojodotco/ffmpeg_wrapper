@@ -670,19 +670,26 @@ function ffmpeg_wrapper_file_data($path = null) {
     // get file duration
     $file['duration'] = ffmpeg_wrapper_file_duration($path);
 
+    unset($matches);
     // get bit rate
-    $pattern = "/bitrate: ([0-9]*)/";
+    $pattern = "/bitrate: ([0-9].*\/s)/";
     preg_match($pattern, $output, $matches);
     $file['bitrate'] = $matches[1];
 
+    unset($matches);
     // get audio settings
     // format is: codec, sample rate, stereo/mono, bitrate
-    $pattern = "/Audio: (.*), ([0-9]*) Hz, (.*), ([0-9]*)/";
+    $pattern = "/Audio: (.*), ([0-9]*) Hz, (stereo|mono)/";
     preg_match($pattern, $output, $matches);
     $file['audio']['codec'] = $matches[1];
     $file['audio']['ar'] = $matches[2];
     $file['audio']['ac'] = $matches[3] == 'stereo' ? 2 : 1;
-    $file['audio']['ab'] = $matches[4];
+
+    unset($matches);
+    // take the last match and extract the bit rate if present
+    $pattern = "/Audio: .* (.*) kb\/s/";
+    preg_match($pattern, $output, $matches);
+    $file['audio']['ab'] = $matches[1] ? $matches[1] : 'na';
 
     // get video settings
     // format is: codec, filetype?, frame size, kb/s
@@ -691,7 +698,7 @@ function ffmpeg_wrapper_file_data($path = null) {
     $file['video']['codec'] = $matches[1];
     // $file['video']['type'] = $matches[2];
     $file['video']['s'] = $matches[3];
-    $file['video']['br'] = $matches[4];
+    $file['video']['br'] = $matches[4] ? $matches[4] : 'na';
 
     return $file;
   }
@@ -955,7 +962,7 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
   $form['ffmpeg_wrapper']['audio'] = array(
     '#type' => 'fieldset',
     '#title' => t('Audio conversion settings'),
-    '#collapsed' => $configuration['ffmpeg_audio_advanced'] ? true : false,
+    '#collapsed' => $configuration['ffmpeg_audio_advanced'] ? false : true,
     '#collapsible' => true,
   );
   $form['ffmpeg_wrapper']['audio']['ffmpeg_audio_advanced'] = array(
