@@ -29,21 +29,10 @@
  * @return array
  *   drupal form array
  */
-function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
-  // get the list of files that are usable
-  if ($files = ffmpeg_wrapper_test_build_files() ) {
-     // now we build a files lookup table to make it possible to match
-    // the radio button values
-    $lookup_files = array();
-    foreach ($files as $file) {
-      $lookup_files[] = $file->filename;
-    }
-  }
-
+function ffmpeg_wrapper_ffmpeg_test_form($form_state) {
   // If we have incoming files we are ready to process the files for conversion
-  if (isset($form_values['post']['files'])) {
-    // run the conversion process with the settings
-    $ffmpeg_object = ffmpeg_wrapper_ffmpeg_test_form_run($form_values['post'], $lookup_files[$form_values['post']['files']]);
+  if (! empty($form_state['values'])) {
+    $ffmpeg_object = $form_state['ffmpeg_object'];
     // set messages- we do this instead of drupal_message()
     $form['messages'] = array(
       '#type' => 'markup',
@@ -60,6 +49,7 @@ function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
       $form['data']['errors'] = array(
         '#type' => 'markup',
         '#value' => t('Errors found: !errors', array('!errors' => implode('<br />', $ffmpeg_object->errors))),
+        '#suffix' => '<br />',
       );
     }
     $form['data']['command'] = array(
@@ -94,13 +84,13 @@ function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
   // AHAH form building
 
   // make sure we have files before we build the file data
-  if ($files) {
+  if ($files = ffmpeg_wrapper_test_build_files()) {
     // build the radio form element that the admin can choose from to process a file
     // use option is tied to AHAH
     $form['files'] = array(
       '#theme' => 'ffmpeg_wrapper_files_radios',
       '#type' => 'radios',
-      '#default_value' => null,
+      '#default_value' => $form_state['values']['files'],
       '#ahah' => array(
         'event' => 'change',
         'path' => 'ffmpeg_wrapper/file_data',
@@ -117,21 +107,21 @@ function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
 
     // this is really ugly, but I'm not sure there is a better way
     // given that this has to POST to the JS
-    $form['lookup_files'] = array(
+    $form['files_lookup'] = array(
       '#type' => 'hidden',
-      '#value' => serialize($lookup_files),
+      '#value' => serialize($files),
     );
 
     // build the options for the files and sub elements
     foreach($files as $key => $file) {
       // build an option for this file with no name
-      $form['files']['#options'][] = $file->filename;
+      $form['files']['#options'][$key] = $file;
       // build the attach options
-      $form['files']['attach_files']['#options'][] = $file->filename;
+      $form['files']['attach_files']['#options'][] = $file;
       // build other table elements
-      $form['files'][$key]['description'] = array('#type' => 'markup',  '#value' => basename($file->filename));
-      $form['files'][$key]['size'] = array('#type' => 'markup',  '#value' => format_size(filesize($file->filename)));
-      $form['files'][$key]['mime'] = array('#type' => 'markup',  '#value' => file_get_mimetype($file->filename));
+      $form['files'][$file]['name'] = array('#type' => 'markup',  '#value' => basename($file));
+      $form['files'][$file]['size'] = array('#type' => 'markup',  '#value' => format_size(filesize($file)));
+      $form['files'][$file]['mime'] = array('#type' => 'markup',  '#value' => file_get_mimetype($file));
     }
 
     // placeholder for the AHAH data
@@ -141,9 +131,10 @@ function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
     );
   }
 
-  // There were no files passed in
+  // There were no files passed in, give the default path
   else {
-    drupal_set_message(t('Sorry there are no files to test. Please place some files to test in !path', array('!path' =>$path)));
+    drupal_set_message(t('Sorry there are no files to test. Please place some files to test in !path',
+      array('!path' => variable_get('ffmpeg_wrapper_test_test', drupal_get_path('module', 'ffmpeg_wrapper') .'/test'))));
     return;
   }
 
@@ -157,11 +148,11 @@ function ffmpeg_wrapper_ffmpeg_test_form($form_values = null) {
   // FFmpeg form building
 
   // get the FFmpeg form
-  $form['ffmpeg'] = ffmpeg_wrapper_configuration_form();
+  $form['ffmpeg'] = ffmpeg_wrapper_configuration_form($form_state['values']);
 
   // add a submit button
   $form['submit'] = array(
-    '#value' => t('Submit'),
+    '#value' => t('Transcode'),
     '#type' => 'submit',
   );
 
@@ -199,8 +190,8 @@ function ffmpeg_wrapper_ffmpeg_test_form_validate($form_id, &$form_state) {
   }
   if ($form_state['clicked_button']['#post']['op'] == t('Attach')) {
     // get the path to the file
-    $lookup_files = unserialize($form_state['values']['lookup_files']);
-    $path = $lookup_files[$form_state['values']['attach_files']];
+    $files_lookup = unserialize($form_state['values']['files_lookup']);
+    $path = $files_lookup[$form_state['values']['attach_files']];
 
     // make sure we have an NID
     if (! $form_state['values']['nid']) {
@@ -217,6 +208,16 @@ function ffmpeg_wrapper_ffmpeg_test_form_validate($form_id, &$form_state) {
       form_set_error('', t('The file you are trying to attach a file does not seem to have data. Maybe this was a bad transcode?'));
     }
   }
+}
+
+function ffmpeg_wrapper_ffmpeg_test_form_submit($form, &$form_state) {
+  // get the file from the lookup files data
+  $files_lookup = unserialize($form_state['values']['files_lookup']);
+  $path = $files_lookup[$form_state['values']['files']];
+  // run the conversion process with the settings
+  $form_state['ffmpeg_object'] = ffmpeg_wrapper_ffmpeg_test_form_run($form_state['values'], $path);
+  // we will rebuild the form.
+  $form_state['rebuild'] = TRUE;
 }
 
 
@@ -246,20 +247,25 @@ function ffmpeg_wrapper_test_cleanup_form() {
  */
 function ffmpeg_wrapper_test_cleanup_form_submit($form_id, &$form_state) {
   // set the paths for removal
-  $paths[] = file_directory_path() .'/ffmpeg_wrapper_test_output';
-  $paths[] = file_directory_path() .'/ffmpeg_wrapper_test_input';
+  $paths = array(
+    file_directory_path() .'/ffmpeg_wrapper_test_output',
+    file_directory_path() .'/ffmpeg_wrapper_test_input',
+  );
 
   // get a list of the files that are currently in the directories
   foreach ($paths as $path) {
-    $files = file_scan_directory($path, '.*$');
-    if (count($files)) {
-      foreach ($files as $file) {
-        file_delete($file->filename);
+    if (is_dir($path)) {
+      $files = file_scan_directory($path, '.*$');
+      if (count($files)) {
+        foreach ($files as $file) {
+          file_delete($file->filename);
+        }
       }
+      // now delete the directory
+      rmdir($path);
     }
-    // now delete the directory
-    rmdir($path);
   }
+
 
   // clear the cached file
   cache_clear_all('ffmpeg_wrapper_test_file', 'cache');
@@ -329,7 +335,14 @@ function ffmpeg_wrapper_test_build_files() {
   foreach ($paths as $path) {
     $files = array_merge($files, file_scan_directory($path, '.*$'));
   }
-  if (count($files)) { return $files; }
+  if (count($files)) {
+    // extract the filenames
+    $return = array();
+    foreach ($files as $file) {
+      $return[] = $file->filename;
+    }
+    return $return;
+  }
 }
 
 
@@ -347,7 +360,6 @@ function ffmpeg_wrapper_test_build_files() {
  *
  */
 function ffmpeg_wrapper_configuration_form_convert($input_file, $params, $output_file_path = null, &$ffmpeg_object) {
-print_r($params);
   // first error check, make sure that we can decode this kind of file
   if (! ffmpeg_wrapper_can_decode($input_file)) {
     $message = 'FFmpeg Wrapper can not decode this file: !file';
@@ -358,7 +370,7 @@ print_r($params);
   }
 
   // build the output file path if we don't have one. Use the output type as the extension.
-  $output_file = file_create_filename(basename($input_file) .'.'. $params['ffmpeg_output_type'], $output_file_path ? $output_file_path : dirname($input_file));
+  $output_file = file_create_filename(basename($input_file) .'.'. $params['ffmpeg_output_type'], ($output_file_path ? $output_file_path : dirname($input_file)));
 
   // did the admin define a specific FFmpeg comand to run?
   //  we only run what the admin specified
@@ -475,8 +487,8 @@ function ffmpeg_wrapper_ffmpeg_test_form_run($form_values, $file_path) {
  */
 function ffmpeg_wrapper_ffmpeg_test_file_attach($form_id, &$form_state) {
   // get the file to attach from the data
-  $lookup_files = unserialize($form_state['values']['lookup_files']);
-  $attach_file = $lookup_files[$form_state['values']['attach_files']];
+  $files_lookup = unserialize($form_state['values']['files_lookup']);
+  $attach_file = $files_lookup[$form_state['values']['attach_files']];
   // load the node object
   $node = node_load($form_state['values']['nid']);
   // build the file object
@@ -485,7 +497,7 @@ function ffmpeg_wrapper_ffmpeg_test_file_attach($form_id, &$form_state) {
   $file->fid = 'new';
   $file->uid = $node->uid;
   $file->filename = basename($attach_file);
-  $file->filepath = $attach_file;
+  $file->filepath = file_create_filename(basename($attach_file), file_directory_path());
   $file->filemime = file_get_mimetype($attach_file);
   $file->filesize = filesize($attach_file);
   $file->timestamp = time();
@@ -510,9 +522,9 @@ function ffmpeg_wrapper_ffmpeg_test_file_attach($form_id, &$form_state) {
 function ffmpeg_wrapper_file_type_js() {
   // loop through the files to find the active one
   if (isset($_POST['files'])) {
-    $lookup_files = unserialize($_POST['lookup_files']);
+    $files_lookup = unserialize($_POST['files_lookup']);
     // set the path
-    $path = $lookup_files[$_POST['files']];
+    $path = $files_lookup[$_POST['files']];
 
     if (! file_exists($path)){
       drupal_json(t('File does not exist'));
@@ -520,14 +532,14 @@ function ffmpeg_wrapper_file_type_js() {
     }
 
     // get the file data
-    $file = ffmpeg_wrapper_file_data($lookup_files[$_POST['files']]);
+    $file = ffmpeg_wrapper_file_data($files_lookup[$_POST['files']]);
 
     // theme the output
     $meta = array(
       t('File: !file', array('!file' => $path)),
       t('Format: !format', array('!format' => $file['format'])),
       t('Duration: !duration (seconds)', array('!duration' => $file['duration'])),
-      null,
+      t('Total bitrate: !rate', array('!rate' => $file['bitrate'])),
     );
 
     $video = array(
@@ -593,20 +605,19 @@ function theme_ffmpeg_wrapper_files_checkboxes(&$form) {
 function theme_ffmpeg_wrapper_files_radios(&$form) {
   $rows = array();
   $header = array(t('File Name'), t('Use'), t('Attach'), t('Mime type'), t('Size'));
-  // keep track of how many elements have been built
+  // Each radio is stored as a numeric under $form[X], use $count to get each one
   $count = 0;
   // select each of the options from the $files form and build from the #options
-  //print_r($form['sites/default/files/ffmpeg_wrapper_test_input/kick_2.flv']);
   foreach ($form['#options'] as $id => $key) {
     $row = array();
     // name of the file
-    $row[] = drupal_render($form[$key]['description']);
+    $row[] = drupal_render($form[$key]['name']);
     // remove the element title
     $form[$id]['#title'] = null;
     // render the radio
     $row[] = drupal_render($form[$count]);
     // unset the title
-    $form['attach_files'][$id]['#title'] = null;
+    $form['attach_files'][$count]['#title'] = null;
     // render the radio
     $row[] = drupal_render($form['attach_files'][$count]);
     $row[] = drupal_render($form[$key]['mime']);
