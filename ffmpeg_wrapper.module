@@ -58,7 +58,7 @@ function ffmpeg_wrapper_menu() {
   // hand back the specific configurations for a codec
   $items['ffmpeg_wrapper/file_data'] = array(
     'title' => 'FFmpeg Wrapper',
-    'page callback' => 'ffmpeg_wrapper_file_type_js',
+    'page callback' => 'ffmpeg_wrapper_file_type_ahah',
     'access arguments' => array('administer ffmpeg wrapper'),
     'file' => 'ffmpeg_wrapper_test_convert.inc',
   );
@@ -102,28 +102,28 @@ function ffmpeg_wrapper_admin() {
   // configuration options
   // only display if we can reach the binary
   if (ffmpeg_wrapper_run_command()) {
-    $form['ffmpeg_wrapper']['mm_ffmpeg_about'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_about'] = array(
       '#type' => 'fieldset',
       '#title' => t('About FFmpeg installation'),
       '#collapsible' => true,
       '#collapsed' => true,
     );
 
-    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_version'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_about']['ffmpeg_wrapper_version'] = array(
       '#type' => 'item',
       '#title' => t('FFmpeg version'),
       '#value' =>  '<blockquote>'. ffmpeg_wrapper_run_command('-v') .'</blockquote>',
       '#description' => t('Version of FFmpeg running on your system'),
     );
 
-    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_formats'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_about']['ffmpeg_wrapper_formats'] = array(
       '#type' => 'item',
       '#title' => t('Supported file formats'),
       '#value' =>  ffmpeg_wrapper_formats_data_display(),
       '#description' => t('File formats that the installed version of FFmpeg supports.'),
     );
 
-    $form['ffmpeg_wrapper']['mm_ffmpeg_about']['mm_ffmpeg_codecs'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_about']['ffmpeg_wrapper_codecs'] = array(
       '#type' => 'item',
       '#title' => t('Installed codecs'),
       '#value' => ffmpeg_wrapper_get_codecs_display(),
@@ -133,13 +133,13 @@ function ffmpeg_wrapper_admin() {
 
   // get a list of the vhooks in the system
   if (ffmpeg_wrapper_vhook_list()) {
-    $form['ffmpeg_wrapper']['mm_ffmpeg_vhooks'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_vhooks'] = array(
       '#type' => 'fieldset',
       '#title' => t('vhook files installed on this system'),
       '#collapsible' => true,
       '#collapsed' => true,
     );
-    $form['ffmpeg_wrapper']['mm_ffmpeg_vhooks']['mm_ffmpeg_vhook'] = array(
+    $form['ffmpeg_wrapper']['ffmpeg_wrapper_vhooks']['ffmpeg_wrapper_vhook'] = array(
       '#type' => 'item',
       '#title' => t('vhook files'),
       '#value' =>  implode('<br />', ffmpeg_wrapper_vhook_list()),
@@ -1086,7 +1086,8 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#default_value' => $configuration['ffmpeg_video_custom'],
   );
   $form['ffmpeg_wrapper']['custom']["ffmpeg_video_custom_command"] = array(
-    '#type' => 'textfield',
+    '#type' => 'textarea',
+    '#rows' => 1,
     '#title' => t('Custom FFmpeg command'),
     '#description' => t('You can craft your own FFmpeg command. Please see the FFmpeg documentation for correct syntax. The command will replace <em>%in_file</em> and <em>%out_file</em> with the generated files. Please note, you can not use | or > in your commands.'),
     '#default_value' => $configuration['ffmpeg_video_custom_command'] ? $configuration['ffmpeg_video_custom_command'] : '-i %in_file %out_file',
