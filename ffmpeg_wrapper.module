@@ -2,11 +2,9 @@
 
 /* $Id$ */
 
-/**
- * @file
- * This implements a wrapper for FFmpeg so that we don't have to reinvent the
- * the wheel everytime we want to do soemthing with video, audio, or images.
- */
+// This implements a wrapper for FFmpeg so that we don't have to reinvent the
+// the wheel every time we want to do something with video, audio, or images
+
 
 /* ************************************************ */
 /* DRUPAL HOOKS */
@@ -62,7 +60,6 @@ function ffmpeg_wrapper_menu() {
     'access arguments' => array('administer ffmpeg wrapper'),
     'file' => 'ffmpeg_wrapper_test_convert.inc',
   );
-
   return $items;
 }
 
@@ -369,7 +366,6 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
   $cache = cache_get($cache_id, 'cache');
   if (!isset($cache->data)) {
     $data = array();
-
     // get formats from ffmpeg
     $output = ffmpeg_wrapper_run_command('-formats');
 
@@ -751,7 +747,7 @@ function ffmpeg_wrapper_get_codecs_display() {
  * @param $ffmpeg_object
  *   Object containing all the data to check errors against
  *   - shell output and command run.
- * @param $watchdog
+ * @param boolean $watchdog
  *   If TRUE, log errors to Drupal's watchdog.
  * @return
  *   TRUE if no errors, FALSE if errors.
@@ -842,37 +838,35 @@ function ffmpeg_wrapper_path_to_vhook($name) {
  *   Array of configuration options.
  */
 function ffmpeg_wrapper_output_rules($output) {
-	// check to see if we have a configuration for this
-	$path = drupal_get_path('module', 'ffmpeg_wrapper');
-	if (file_exists($path .'/conf/'. $output .'.conf')) {
-		require_once($path .'/conf/'. $output .'.conf');
-		return $configuration;
-	}
+  // check to see if we have a configuration for this
+  $path = drupal_get_path('module', 'ffmpeg_wrapper');
+  if (file_exists($path .'/conf/'. $output .'.conf')) {
+    require_once($path .'/conf/'. $output .'.conf');
+    return $configuration;
+  }
 
-	// we don't have a configuration setting, load up the defaults
-	// for any thing that we don't have data for. First check
-	// and see if we have a cache
+  // we don't have a configuration setting, load up the defaults
+  // for any thing that we don't have data for. First check
+  // and see if we have a cache
   $cache = cache_get('ffmpeg_wrapper_default_output');
   if (is_array($cache->data)) {
     return $cache->data;
   }
 
-	// no cache, build out the default options
-	$default['audio'] = array(
-	  'ab' => ffmpeg_wrapper_output_rates('ab'),
-	  'ar' => ffmpeg_wrapper_output_rates('ar'),
-	  'acodec' => ffmpeg_wrapper_return_codecs('audio'),
-	);
-	$default['video'] = array(
-	  'fps' => ffmpeg_wrapper_output_rates('fps'),
-	  'br' =>  ffmpeg_wrapper_output_rates('br'),
-	  'vcodec' => ffmpeg_wrapper_return_codecs('video'),
-	);
-	$default['default'] = 'default';
-
-	cache_set('ffmpeg_wrapper_default_output', $default, 'cache', CACHE_TEMPORARY);
-
-	return $default;
+  // no cache, build out the default options
+  $default['audio'] = array(
+    'ab' => ffmpeg_wrapper_output_rates('ab'),
+    'ar' => ffmpeg_wrapper_output_rates('ar'),
+    'acodec' => ffmpeg_wrapper_return_codecs('audio'),
+  );
+  $default['video'] = array(
+    'fps' => ffmpeg_wrapper_output_rates('fps'),
+    'br' =>  ffmpeg_wrapper_output_rates('br'),
+    'vcodec' => ffmpeg_wrapper_return_codecs('video'),
+  );
+  $default['default'] = 'default';
+  cache_set('ffmpeg_wrapper_default_output', $default, 'cache', CACHE_TEMPORARY);
+  return $default;
 }
 
 /**
@@ -899,7 +893,7 @@ function ffmpeg_wrapper_output_display($output) {
  * @param $bind_element
  *   The name of the element (minus the prefix) that will be modifed.
  */
-function ffmpeg_wrapper_enable_js($prefix, $bind_element = '') {
+function ffmpeg_wrapper_enable_js($prefix = '', $bind_element = '') {
   // because of the way drupal handles form element ids, we have to transform
   // underscores in string to dashes
   $bind_element = str_replace('_', '-', $bind_element);
