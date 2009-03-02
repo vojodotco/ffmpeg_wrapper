@@ -4,6 +4,9 @@
  CONFIGURATION
 -----------------------------------------------------------------------
 
+FFmpeg will try to find the FFmpeg binary when you install the module. 
+If it can not find FFmpeg, you will need to specify the path by hand
+
 Go to admin/settings/ffmpeg_wrapper
 
 Make sure you configure the path to FFmpeg. This is relative to the root 

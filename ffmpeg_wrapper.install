@@ -1,0 +1,21 @@
+<?php
+
+// $Id$
+
+/**
+ * @FILE Install file for ffmpeg_wrapper
+ *
+ */
+
+function ffmpeg_wrapper_install() {
+  // see if we can find ffmpeg
+  if ($path = exec('export PATH=$PATH:/sw/bin:/bin:/usr/bin:/usr/local/bin; which ffmpeg')) {
+    variable_set('ffmpeg_wrapper_path', $path);
+    drupal_set_message(t('The FFmpeg binary was found. You are ready to start transcoding files.'));
+  }
+  else {
+    drupal_set_message(t('The FFmpeg binary was not found. You will need to set the path by hand !here.',
+      array('!here' => l(t('here'), 'admin/settings/ffmpeg_wrapper'))
+    ));
+  }
+}
