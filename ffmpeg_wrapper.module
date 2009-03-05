@@ -33,6 +33,7 @@ function ffmpeg_wrapper_menu() {
     'page callback' => 'ffmpeg_wrapper_output_display',
     'page arguments' => array(2),
     'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
   );
 
   // testing utilities
@@ -59,6 +60,7 @@ function ffmpeg_wrapper_menu() {
     'page callback' => 'ffmpeg_wrapper_file_type_ahah',
     'access arguments' => array('administer ffmpeg wrapper'),
     'file' => 'ffmpeg_wrapper_test_convert.inc',
+    'type' => MENU_CALLBACK,
   );
   return $items;
 }
