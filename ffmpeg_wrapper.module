@@ -78,7 +78,11 @@ function ffmpeg_wrapper_perm() {
  * Build the admin form.
  */
 function ffmpeg_wrapper_admin() {
-
+  // always clear caches when if settings are updated
+  cache_clear_all('ffmpeg_wrapper_codecs', 'cache');
+  cache_clear_all('ffmpeg_wrapper_output_formats', 'cache');
+  cache_clear_all('ffmpeg_wrapper_file_formats', 'cache');
+  
   $form['ffmpeg_wrapper'] = array(
     '#type' => 'fieldset',
     '#title' => t('FFmpeg'),
@@ -801,7 +805,7 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
       $message = t('FFmpeg created a file, but it does not have any data');
       $ffmpeg_object->errors[] = $message;
       if ($watchdog) {
-        watchdog('FFmpeg', $message, WATCHDOG_ERROR);
+        watchdog('FFmpeg', $message,  array(), WATCHDOG_ERROR);
       }
       $return = false;
     }
