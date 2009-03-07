@@ -95,3 +95,22 @@ function ffmpeg_wrapper_update_options(prefix, source) {
    else { var selected = ''; }   
    return '<option value="'+value+'">'+description+'</option>';
  }
+ 
+ 
+ /**
+  * This shows and hides the frame size other option in the 
+  * video options dropdown
+  */
+ if (Drupal.jsEnabled) {
+  $(document).ready(function () {
+    // get the video size element      
+    $('#edit-ffmpeg-video-size').bind('change', function () {
+      if ($(this).val() == 'other'){
+        $('#edit-ffmpeg-video-size-other').show('slow');
+       }
+       else {
+         $('#edit-ffmpeg-video-size-other').hide('slow');
+       }
+     });
+  });
+}

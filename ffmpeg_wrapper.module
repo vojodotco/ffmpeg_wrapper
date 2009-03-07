@@ -621,12 +621,17 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
  *   The path to file.
  * @param $timecode
  *   If TRUE, return time code, otherwise return seconds.
+ * @param $output
+ *   string, output of ffmpeg if it has already been run
  * @return
  *   Duration in seconds as an integer or timecode as string.
  */
-function ffmpeg_wrapper_file_duration($path, $timecode = null) {
-  // get duration from ffmpeg
-  $output = ffmpeg_wrapper_run_command("-i $path");
+function ffmpeg_wrapper_file_duration($path, $timecode = null, $output = null) {
+  // do we have any output from ffmpeg already?
+  if (! $output) {
+    // get duration from ffmpeg
+    $output = ffmpeg_wrapper_run_command("-i $path");
+  }
 
   // parse the output looking for "Duration: 00:02:12"
   $pattern = "/Duration: ([0-9]+:[0-9]+:[0-9]+)\.[0-9]+/";
@@ -657,7 +662,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode = null) {
  * This function produces file data from an incoming file
  * @param $path
  * @param $timecode
- * @return unknown_type
+ * @return array
  */
 function ffmpeg_wrapper_file_data($path = null) {
   if ($path) {
@@ -670,7 +675,7 @@ function ffmpeg_wrapper_file_data($path = null) {
     $file['format'] = $matches[1];
 
     // get file duration
-    $file['duration'] = ffmpeg_wrapper_file_duration($path);
+    $file['duration'] = ffmpeg_wrapper_file_duration(null, null, $output);
 
     unset($matches);
     // get bit rate
@@ -975,7 +980,7 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#type' => 'select',
     '#title' => t('Audio bit rate'),
     '#options' => ffmpeg_wrapper_output_rates('ab'),
-    '#default_value' => $configuration['ffmpeg_audio_ab'] ? $configuration['ffmpeg_audio_ab'] :  '64k',
+    '#default_value' => $configuration['ffmpeg_audio_ab'] ? $configuration['ffmpeg_audio_ab'] :  array('64k'),
     '#description' => t("Audio bit rate for conversion file."),
   );
   $form['ffmpeg_wrapper']['audio']["ffmpeg_audio_ar"] = array(
@@ -1033,14 +1038,14 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#type' => 'select',
     '#title' => t('Video fps rate'),
     '#options' => ffmpeg_wrapper_output_rates('fps'),
-    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : 25,
+    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : array(25),
     '#description' => t("Sets the frames per second of the converted video."),
   );
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_br'] = array(
     '#type' => 'select',
     '#title' => t('Video bit rate'),
     '#options' => ffmpeg_wrapper_output_rates('br'),
-    '#default_value' => $configuration['ffmpeg_video_br'],
+    '#default_value' => $configuration['ffmpeg_video_br'] ? $configuration['ffmpeg_video_br'] : array('250k'),
     '#description' => t('Target the output video to this bit rate.'),
   );
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_vcodec'] = array(

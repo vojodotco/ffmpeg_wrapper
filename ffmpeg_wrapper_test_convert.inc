@@ -314,10 +314,12 @@ function ffmpeg_wrapper_test_build_files() {
     else {
       // loop through the list of files and look for the requested file
       $found = false;
-      foreach ($return as $file) {
-        if (basename($file) == basename($file_path)) {
-          // the file was found
-          $found = true;
+      if ($return) {
+        foreach ($return as $file) {
+          if (basename($file) == basename($file_path)) {
+            // the file was found
+            $found = true;
+          }
         }
       }
       if (! $found ) {
