@@ -713,6 +713,78 @@ function ffmpeg_wrapper_file_data($path = null) {
 
 
 /**
+ * Calculate an output size and a padding value for a video file.
+ *
+ * @param $file
+ *   Path to the file to be converted.
+ * @param $size
+ *   The maximum dimensions of the output file, expressed as XXXxYYY. This will
+ *   be cropped to match the original file's proportions and the remaining 
+ *   space will be used to calculate the padding.
+ * @param $return
+ *   Either 'padding' or 'size'.
+ * @return
+ *   Depending on the value of $return, the function returns either the size 
+ *   expressed as XXXxYYY, or the actual padding argument for FFmpeg, ie. 
+ *   "-padtop XX -padbottom XX". The result is statically cached, so you can 
+ *   call it multiple times without permormance issues.
+ */
+function ffmpeg_wrapper_padded_size($file, $size, $return = 'padding') {
+  static $file_proportions;
+  
+  // Cache file proportions statically.
+  if (!isset($file_proportions)) {
+    $file_proportions = array();
+  }
+  if (isset($file_proportions[$file])) {
+    return ($return == 'size') ? $file_proportions[$file][0] : $file_proportions[$file][1];
+  }
+  
+  else {
+    $pad = '';
+    $size = '';
+    
+    // Determine source file's dimensions and proportions.
+    $info = ffmpeg_wrapper_file_data($file);
+    if ($info) {
+      list($orig_x, $orig_y) = explode('x', $info['video']['s']);
+      $orig_q = $orig_x / $orig_y;
+      
+      // Determine output dimensions and proportions.
+      list($dest_x, $dest_y) = explode('x', $size);
+      $dest_q = $dest_x / $dest_y;
+      
+      // Calculate new output size and padding.
+      if ($orig_q > $dest_q) {
+        // Width is the determining factor.
+        $dest_y_calc = round($dest_x / $orig_q);
+        // Make sure height is divisible by 2, otherwise ffmpeg freaks out.
+        $dest_y_calc &= ~1;
+        $padding1 = floor(($dest_y - $dest_y_calc) / 2);
+        $padding2 = $dest_y - $dest_y_calc - $padding1;
+        $pad = sprintf('-padtop %d -padbottom %d', $padding, $padding);
+        $size = $dest_x . 'x' . $dest_y_calc;
+      }
+      elseif ($dest_q > $orig_q) {
+        // Height is the determining factor.
+        $dest_x_calc = round($dest_y * $orig_q);
+        // Make sure width is divisible by 2, otherwise ffmpeg freaks out.
+        $dest_x_calc &= ~1;
+        $padding1 = round(($dest_x - $dest_x_calc) / 2);
+        $padding2 = $dest_x - $dest_x_calc - $padding1;
+        $pad = sprintf('-padleft %d -padright %d', $padding, $padding);
+        $size = $dest_x_calc . 'x' . $dest_y;
+      }
+    }
+    
+    // Save and return the results.
+    $file_proportions[$file] = array($size, $pad);
+    return ($return == 'size') ? $size : $pad;
+  }
+}
+
+
+/**
  * Check to make sure that FFmpeg is in the path.
  *
  * @return
