@@ -271,7 +271,7 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
   // Find the output file in the command if there was one.
   // This is sort of hacky but is helpful for passing the file out.
   preg_match("/.*'(.*)'$/i", $command, $matches);
-  $matches[1] ? $ffmpeg_object->output_file = $matches[1] : null;
+  $ffmpeg_object->output_file = !empty($matches[1]) ? $matches[1] : null;
 
   // do error handling if requested
   if ($error_check) {
@@ -337,6 +337,7 @@ function ffmpeg_wrapper_can_decode($path) {
 
   // exception handling
   // WMVs are sometimes asf files
+  $exception = '';
   if (preg_match('/wmv/i', $path_parts['extension'])) {
     $exception = 'asf';
   }
@@ -578,25 +579,27 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
       $a_format['type'] = $matches[3];
       $a_format['name'] = $matches[4];
 
-      if ($matches[1] == 'D') {
-        $a_format['decode'] = t('yes');
-        $decode_formats[] = $a_format['type'];
-      }
-      else {
-        $a_format['decode'] = t('no');
-      }
-
-      if ($matches[2] == 'E') {
-        $a_format['encode'] = t('yes');
-        $encode_formats[] = $a_format['type'];
-      }
-      else {
-        $a_format['encode'] = t('no');
-      }
-
-      $a_format['description'] = $matches[4];
-      if ($a_format['description']) {
-        $rows[] = $a_format;
+      if (!empty($matches)) {
+        if ($matches[1] == 'D') {
+          $a_format['decode'] = t('yes');
+          $decode_formats[] = $a_format['type'];
+        }
+        else {
+          $a_format['decode'] = t('no');
+        }
+  
+        if ($matches[2] == 'E') {
+          $a_format['encode'] = t('yes');
+          $encode_formats[] = $a_format['type'];
+        }
+        else {
+          $a_format['encode'] = t('no');
+        }
+  
+        $a_format['description'] = $matches[4];
+        if ($a_format['description']) {
+          $rows[] = $a_format;
+        }
       }
     }
     $output = array();
@@ -672,7 +675,7 @@ function ffmpeg_wrapper_file_data($path = null) {
     // get file format
     $pattern = '/Input #0, (.*),/';
     preg_match($pattern, $output, $matches);
-    $file['format'] = $matches[1];
+    $file['format'] = !empty($matches[1]) ? $matches[1] : 'na';
 
     // get file duration
     $file['duration'] = ffmpeg_wrapper_file_duration(null, null, $output);
@@ -681,31 +684,31 @@ function ffmpeg_wrapper_file_data($path = null) {
     // get bit rate
     $pattern = "/bitrate: ([0-9].*\/s)/";
     preg_match($pattern, $output, $matches);
-    $file['bitrate'] = $matches[1];
+    $file['bitrate'] = !empty($matches[1]) ? $matches[1] : 'na';
 
     unset($matches);
     // get audio settings
     // format is: codec, sample rate, stereo/mono, bitrate
     $pattern = "/Audio: (.*), ([0-9]*) Hz, (stereo|mono)/";
     preg_match($pattern, $output, $matches);
-    $file['audio']['codec'] = $matches[1];
-    $file['audio']['ar'] = $matches[2];
-    $file['audio']['ac'] = $matches[3] == 'stereo' ? 2 : 1;
+    $file['audio']['codec'] = !empty($matches[1]) ? $matches[1] : 'na';
+    $file['audio']['ar'] = !empty($matches[2]) ? $matches[2] : 'na';
+    $file['audio']['ac'] = (!empty($matches[3]) && $matches[3] == 'stereo') ? 2 : 1;
 
     unset($matches);
     // take the last match and extract the bit rate if present
     $pattern = "/Audio: .* (.*) kb\/s/";
     preg_match($pattern, $output, $matches);
-    $file['audio']['ab'] = $matches[1] ? $matches[1] : 'na';
+    $file['audio']['ab'] = !empty($matches[1]) ? $matches[1] : 'na';
 
     // get video settings
     // format is: codec, filetype?, frame size, kb/s
     $pattern = "/Video: (.*), (.*), ([0-9x]*) \[.*\], ([0-9]*)/";
     preg_match($pattern, $output, $matches);
-    $file['video']['codec'] = $matches[1];
+    $file['video']['codec'] = !empty($matches[1]) ? $matches[1] : 'na';
     // $file['video']['type'] = $matches[2];
-    $file['video']['s'] = $matches[3];
-    $file['video']['br'] = $matches[4] ? $matches[4] : 'na';
+    $file['video']['s'] = !empty($matches[3]) ? $matches[3] : 'na';
+    $file['video']['br'] = !empty($matches[4]) ? $matches[4] : 'na';
 
     return $file;
   }
@@ -876,7 +879,7 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
   }
 
   // check to see that a viable file was created
-  if ($ffmpeg_object->output_file) {
+  if (!empty($ffmpeg_object->output_file)) {
     // check to see that the file had data
     if (filesize($ffmpeg_object->output_file) < 10 ) {
       $message = t('FFmpeg created a file, but it does not have any data');
