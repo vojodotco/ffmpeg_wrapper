@@ -703,12 +703,13 @@ function ffmpeg_wrapper_file_data($path = null) {
 
     // get video settings
     // format is: codec, filetype?, frame size, kb/s
-    $pattern = "/Video: (.*), (.*), ([0-9x]*) \[.*\], ([0-9]*)/";
+    // Everything after frame size is optional, as it isn't always there.
+    $pattern = "/Video: (.*), (.*), ([0-9x]*)( \[.*\], ([0-9]*))?/";
     preg_match($pattern, $output, $matches);
     $file['video']['codec'] = !empty($matches[1]) ? $matches[1] : 'na';
     // $file['video']['type'] = $matches[2];
     $file['video']['s'] = !empty($matches[3]) ? $matches[3] : 'na';
-    $file['video']['br'] = !empty($matches[4]) ? $matches[4] : 'na';
+    $file['video']['br'] = !empty($matches[5]) ? $matches[5] : 'na';
 
     return $file;
   }
