@@ -745,7 +745,6 @@ function ffmpeg_wrapper_padded_size($file, $size, $return = 'padding') {
   
   else {
     $pad = '';
-    $size = '';
     
     // Determine source file's dimensions and proportions.
     $info = ffmpeg_wrapper_file_data($file);
