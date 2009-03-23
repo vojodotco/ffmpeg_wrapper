@@ -345,7 +345,8 @@ function ffmpeg_wrapper_can_decode($path) {
   if ($file_types) {
     foreach ($file_types as $file_type) {
       if ($path_parts['extension']) {
-        if (stristr($file_type, $path_parts['extension']) || stristr($file_type, $exception) ) {
+        if (stristr($file_type, $path_parts['extension'])
+          || ($exception && stristr($file_type, $exception))) {
           return true;
         }
       }
