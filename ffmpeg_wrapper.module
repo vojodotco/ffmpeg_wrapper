@@ -332,24 +332,16 @@ function ffmpeg_wrapper_vhook_list($path = '') {
  *   TRUE if file is in the list of decodeable files.
  */
 function ffmpeg_wrapper_can_decode($path) {
+  // get the kind of files 
   $file_types = ffmpeg_wrapper_get_file_formats('decode');
-  $path_parts = pathinfo($path);
 
-  // exception handling
-  // WMVs are sometimes asf files
-  $exception = '';
-  if (preg_match('/wmv/i', $path_parts['extension'])) {
-    $exception = 'asf';
-  }
-
-  if ($file_types) {
-    foreach ($file_types as $file_type) {
-      if ($path_parts['extension']) {
-        if (stristr($file_type, $path_parts['extension'])
-          || ($exception && stristr($file_type, $exception))) {
-          return true;
-        }
-      }
+  // get the data on this file
+  $file_data = fffmpeg_wrapper_file_data($path);
+  // some files have multiple formats attached to them
+  foreach(explode(',', $file['video']['codec']) as $type) {
+    // is this type in the array of items that we can decode?
+    if (in_array($type, $file_types)) {
+      return true;
     }
   }
   return false;
@@ -506,16 +498,16 @@ function ffmpeg_wrapper_output_formats() {
  *   Array of key values.
  */
 function ffmpeg_wrapper_output_rates($type) {
-	static $rates;
-	if (! $rates) {
-	  $rates = array(
-	   'ab'  => array('16k' => '16k', '22k' => '22k', '32k' => '32k', '64k' => t('64k (default)'), '128k' => '128k', '192k' => '192k', '256k' => '256k'),
-	   'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('32khz'), '44100' => t('44.1khz (default)') ),
+  static $rates;
+  if (! $rates) {
+    $rates = array(
+     'ab'  => array('16k' => '16k', '22k' => '22k', '32k' => '32k', '64k' => t('64k (default)'), '128k' => '128k', '192k' => '192k', '256k' => '256k'),
+     'ar' => array('11025' => t('11khz'), '22050' => t('22khz'), '32000' => t('32khz'), '44100' => t('44.1khz (default)') ),
        'fps' => array(10 =>10, 15 => 15, 20 => 20, 25 => t('25 (default)'), 29.97 => 29.97),
        'br' => array('50k' => t('50kps'), '100k' => t('100kps'), '150k' => t('150kps'), '200k' => t('200kps'), '250k' => t('250kps (default)'), '300k' => t('300kps'), '500k' => t('500kps'), '750k' => t('750kps'), '1000k' => t('1000kps'), '1250k' => t('1250kps'), '1500k' => t('1500kps'), '2000k' => t('2000kps')),
       );
-	}
-	return $rates[$type];
+  }
+  return $rates[$type];
 }
 
 
@@ -550,9 +542,9 @@ function ffmpeg_wrapper_frame_sizes(){
  * @return
  *   Array of options.
  */
-function ffmpeg_wrapper_get_file_formats($ret = null) {
-  $cache_id = 'ffmpeg_wrapper_file_formats';
-  $cache = cache_get($cache_id, 'cache');
+function ffmpeg_wrapper_get_file_formats($ret = 'row') {
+  //$cache_id = 'ffmpeg_wrapper_file_formats';
+ // $cache = cache_get($cache_id, 'cache');
   // do we have cached data?
   if (!isset($cache->data)) {
     // if we can't get formats, do not bother
@@ -566,13 +558,11 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
     //remove the header
     $formats = str_replace('File formats:', '', $formats);
 
-    $formats = explode("\n", $formats);
-
     $decode_formats = array();
     $encode_formats = array();
 
     $rows = array();
-    foreach ($formats as $format) {
+    foreach (explode("\n", $formats) as $format) {
       // match the decode, encode, format, description
       $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([a-zA-Z0-9,_ ]*)/';
       preg_match($pattern, $format, $matches);
@@ -580,29 +570,38 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
       $a_format['type'] = $matches[3];
       $a_format['name'] = $matches[4];
 
-      if (!empty($matches)) {
-        if ($matches[1] == 'D') {
-          $a_format['decode'] = t('yes');
+      // check for decoding
+      if ($matches[1] == 'D') {
+        $a_format['decode'] = t('yes');
+        // we can have multiple types per format
+        $types = explode(',', $a_format['name']);
+        foreach ($types as $type) {
           $decode_formats[] = $a_format['type'];
         }
-        else {
-          $a_format['decode'] = t('no');
-        }
-  
-        if ($matches[2] == 'E') {
-          $a_format['encode'] = t('yes');
+      }
+      else {
+        $a_format['decode'] = t('no');
+      }
+
+      // check for encoding
+      if ($matches[2] == 'E') {
+        $a_format['encode'] = t('yes');
+        // we can have multiple types per format
+        $types = explode(',', $a_format['name']);
+        foreach ($types as $type) {
           $encode_formats[] = $a_format['type'];
         }
-        else {
-          $a_format['encode'] = t('no');
-        }
-  
-        $a_format['description'] = $matches[4];
-        if ($a_format['description']) {
-          $rows[] = $a_format;
-        }
+      }
+      else {
+        $a_format['encode'] = t('no');
+      }
+
+      $a_format['description'] = $matches[4];
+      if ($a_format['description']) {
+        $rows[] = $a_format;
       }
     }
+    
     $output = array();
     $output['encode'] = $encode_formats;
     $output['decode'] = $decode_formats;
@@ -612,7 +611,7 @@ function ffmpeg_wrapper_get_file_formats($ret = null) {
   else {
     $output = $cache->data;
   }
-
+  
   // return the requested data
   return $output[$ret];
 }
@@ -867,7 +866,7 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
 
   // check for error conditions
   foreach ($errors as $error) {
-  	preg_match($error, $ffmpeg_object->output, $matches);
+    preg_match($error, $ffmpeg_object->output, $matches);
     if (count($matches)) {
       $ffmpeg_object->errors[] = print_r($matches[0], true);
       if ($watchdog) {
@@ -994,7 +993,7 @@ function ffmpeg_wrapper_enable_js($prefix = '', $bind_element = '') {
   drupal_add_js(array('ffmpeg_wrapper' => array(
     'ffmpeg_wrapper_output_url' => url('ffmpeg_wrapper/output/'),
     'default_string' => t('default'),
-	 )), 'setting');
+   )), 'setting');
   drupal_add_js(drupal_get_path('module', 'ffmpeg_wrapper') .'/ffmpeg_wrapper.js');
 }
 
