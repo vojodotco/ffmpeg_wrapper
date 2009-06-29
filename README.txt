@@ -21,7 +21,7 @@ it on a debian/ubuntu environment:
 
 http://www.24b6.net/?p=188
 
-If you need a compiled binary, check http://mediamover.24b6.net/ffmpeg
+If you need a compiled binary, check http://24b6.net/content/ffmpeg-binary
 
 If you are having PHP issues with openbasedir, you may want to look
 at this page: http://drupal.org/node/82223
