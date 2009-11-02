@@ -328,19 +328,20 @@ function ffmpeg_wrapper_vhook_list($path = '') {
 
 
 /**
- * Check an incoming file path extension to see if it can be decoded.
- *
- * @param $file
- *   A full system filepath.
+ * Check an incoming file to see if it can be decoded by comparing the file's codec 
+ * and format against the list of decode formats in FFMPEG. 
+ * 
+ * @param $filepath
+ *   string filepath full system filepath.
  * @return
  *   TRUE if file is in the list of decodeable files.
  */
-function ffmpeg_wrapper_can_decode($path) {
+function ffmpeg_wrapper_can_decode($filepath) {
   // get the kind of files
   $file_types = ffmpeg_wrapper_get_codecs('decode');
 
   // get the data on this file
-  $file_data = ffmpeg_wrapper_file_data($path);
+  $file_data = ffmpeg_wrapper_file_data($filepath);
 
   // some files have multiple formats attached to them
   foreach(explode(',', $file_data['video']['codec']) as $type) {
@@ -569,7 +570,7 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     $rows = array();
     foreach (explode("\n", $formats) as $format) {
       // match the decode, encode, format, description
-      $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([a-zA-Z0-9,_ ]*)/';
+      $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([^\$]*)/';
       preg_match($pattern, $format, $matches);
 
       $a_format['type'] = $matches[3];
@@ -637,7 +638,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode = null, $output = null) {
   // do we have any output from ffmpeg already?
   if (! $output) {
     // get duration from ffmpeg
-    $output = ffmpeg_wrapper_run_command("-i $path");
+    $output = ffmpeg_wrapper_run_command("-i \"$path\"");
   }
 
   // parse the output looking for "Duration: 00:02:12"
@@ -674,7 +675,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode = null, $output = null) {
 function ffmpeg_wrapper_file_data($path = null) {
   if (file_exists($path)) {
     // get duration from ffmpeg
-    $output = ffmpeg_wrapper_run_command("-i $path");
+    $output = ffmpeg_wrapper_run_command("-i \"$path\"");
 
     // get file format
     $pattern = '/Input #0, (.*),/';
