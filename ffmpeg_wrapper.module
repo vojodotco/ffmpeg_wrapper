@@ -1145,7 +1145,7 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#type' => 'select',
     '#title' => t('Video fps rate'),
     '#options' => ffmpeg_wrapper_output_rates('fps'),
-    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : array(25),
+    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : 250,
     '#description' => t("Sets the frames per second of the converted video."),
   );
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_br'] = array(
