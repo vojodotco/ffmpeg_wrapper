@@ -255,8 +255,14 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
   if (empty($ffmpeg_object)) {
     $ffmpeg_object = new stdClass();
   }
-
-  $ffmpeg_object->command = escapeshellcmd($path .' '. $command);
+  
+  // Create some exceptions for dealing with pipes and semicolons
+  $pattern = array('\;', '\|');
+  $replace = array(';', '|');
+  
+  // Escape our command, but make sure that we allow | and ;
+  $ffmpeg_object->command = str_replace($pattern, $replace, escapeshellcmd($path .' '. $command));
+  
   $ffmpeg_object->cwd = getcwd();
 
   // does binary exist?
@@ -328,25 +334,55 @@ function ffmpeg_wrapper_vhook_list($path = '') {
 
 
 /**
- * Check an incoming file to see if it can be decoded by comparing the file's codec 
- * and format against the list of decode formats in FFMPEG. 
- * 
- * @param $filepath
- *   string filepath full system filepath.
+ * Check an incoming file to see if it can be decoded by comparing the file's codec
+ * and format against the list of decode formats in FFMPEG.
+ *
+ * @param $file
+ *   string, A full system filepath.
+ * @param $types
+ *   array, what kind of decode do we need to check for
  * @return
- *   TRUE if file is in the list of decodeable files.
+ *   boolean, TRUE if file is in the list of decodeable files.
  */
-function ffmpeg_wrapper_can_decode($filepath) {
+function ffmpeg_wrapper_can_decode($path, $types = array('video', 'audio')) {
   // get the kind of files
-  $file_types = ffmpeg_wrapper_get_codecs('decode');
+  $file_types = ffmpeg_wrapper_get_file_formats('decode');
 
-  // get the data on this file
-  $file_data = ffmpeg_wrapper_file_data($filepath);
+  // get the format and codec information on this file
+  $file_data = ffmpeg_wrapper_file_data($path);
 
-  // some files have multiple formats attached to them
-  foreach(explode(',', $file_data['video']['codec']) as $type) {
-    // is this type in the array of items that we can decode?
-    if (in_array($type, $file_types)) {
+   // if the file has multiple formats, all formats
+   // must be in $file_types Otherwise, it is
+   // not supported by ffmpeg.
+  foreach(explode(',', $file_data['format']) as $type) {
+    if (! in_array($type, $file_types)) {
+      return false;
+    }
+  }
+
+  // if we have na values for the audio and video codecs, the file can not be decoded
+  // @ TODO is this really true? The logic below does not seem to indicate this,
+  //        however, I might not understand what the 'na' value really means
+  if ($file_data['audio']['codec'] == 'na' && $file_data['video']['codec'] == 'na') {
+    return false;
+  }
+
+  // Now get installed codecs to compare file codecs
+  foreach (ffmpeg_wrapper_get_codecs('decode') as $codec) {
+    if ($codec == $file_data['audio']['codec'] || $file_data['audio']['codec'] == 'na' ) {
+       // are we only handing back audio?
+      if ($types['audio'] && ! $types['video']) { return true; }
+      $can_audio_decode = true;
+    }
+
+    if ($codec == $file_data['video']['codec'] || $file_data['video']['codec'] == 'na') {
+      // are we only handing back video?
+      if ($types['video'] && ! $types['audio']) { return true; }
+      $can_video_decode = true;
+    }
+
+    // If we can decode both audio and video, the file is ok
+    if ($can_audio_decode && $can_video_decode) {
       return true;
     }
   }
@@ -552,7 +588,7 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
   $cache_id = 'ffmpeg_wrapper_file_formats';
   $cache = cache_get($cache_id, 'cache');
   // do we have cached data?
-  if (! isset($cache->data)) {
+  if (!isset($cache->data)) {
     // if we can't get formats, do not bother
     if (! $formats = ffmpeg_wrapper_run_command('-formats') ) {
       return;
@@ -568,6 +604,7 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     $encode_formats = array();
 
     $rows = array();
+
     foreach (explode("\n", $formats) as $format) {
       // match the decode, encode, format, description
       $pattern ='/[ ]*([D ])([E ])[ ]*([a-zA-Z0-9_,]*)[ ]*([^\$]*)/';
@@ -580,9 +617,9 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
       if ($matches[1] == 'D') {
         $a_format['decode'] = t('yes');
         // we can have multiple types per format
-        $types = explode(',', $a_format['name']);
+        $types = explode(',', $a_format['type']);
         foreach ($types as $type) {
-          $decode_formats[] = $a_format['type'];
+          $decode_formats[] = $type;
         }
       }
       else {
@@ -593,9 +630,9 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
       if ($matches[2] == 'E') {
         $a_format['encode'] = t('yes');
         // we can have multiple types per format
-        $types = explode(',', $a_format['name']);
+        $types = explode(',', $a_format['type']);
         foreach ($types as $type) {
-          $encode_formats[] = $a_format['type'];
+          $encode_formats[] = $type;
         }
       }
       else {
@@ -612,6 +649,7 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     $output['encode'] = $encode_formats;
     $output['decode'] = $decode_formats;
     $output['row'] = $rows;
+
     cache_set($cache_id, $output, 'cache', CACHE_TEMPORARY);
   }
   else {
@@ -638,6 +676,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode = null, $output = null) {
   // do we have any output from ffmpeg already?
   if (! $output) {
     // get duration from ffmpeg
+    // need quotes around the path parameter in case filename has spaces.
     $output = ffmpeg_wrapper_run_command("-i \"$path\"");
   }
 
@@ -675,6 +714,7 @@ function ffmpeg_wrapper_file_duration($path, $timecode = null, $output = null) {
 function ffmpeg_wrapper_file_data($path = null) {
   if (file_exists($path)) {
     // get duration from ffmpeg
+    // need quotes around the path parameter in case filename has spaces.
     $output = ffmpeg_wrapper_run_command("-i \"$path\"");
 
     // get file format
@@ -804,7 +844,7 @@ function ffmpeg_wrapper_padded_size($file, $size, $return = 'padding') {
         $padding = $dest_x - $dest_x_calc;
         $padoptions = '-padleft %d -padright %d';
       }
-      
+
       // Calculate padding on each side. Each value has to be a multiple of 2.
       $padding &= ~1;
       $padding1 = floor($padding / 2);
@@ -1146,14 +1186,14 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#type' => 'select',
     '#title' => t('Video fps rate'),
     '#options' => ffmpeg_wrapper_output_rates('fps'),
-    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : 250,
+    '#default_value' => $configuration['ffmpeg_video_fps'] ? $configuration['ffmpeg_video_fps'] : array(25),
     '#description' => t("Sets the frames per second of the converted video."),
   );
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_br'] = array(
     '#type' => 'select',
     '#title' => t('Video bit rate'),
     '#options' => ffmpeg_wrapper_output_rates('br'),
-    '#default_value' => $configuration['ffmpeg_video_br'] ? $configuration['ffmpeg_video_br'] : '250k',
+    '#default_value' => $configuration['ffmpeg_video_br'] ? $configuration['ffmpeg_video_br'] : array('250k'),
     '#description' => t('Target the output video to this bit rate.'),
   );
   $form['ffmpeg_wrapper']['video']['ffmpeg_video_vcodec'] = array(
@@ -1202,9 +1242,7 @@ function ffmpeg_wrapper_configuration_form($configuration = array(), $form_prefi
     '#type' => 'textarea',
     '#rows' => 1,
     '#title' => t('Custom FFmpeg command'),
-    '#description' => t('You can craft your own FFmpeg command.
-      Please see the FFmpeg documentation for correct syntax. 
-      The command will replace <em>%in_file</em> and <em>%out_file</em> with the generated files.'),
+    '#description' => t('You can craft your own FFmpeg command. Please see the FFmpeg documentation for correct syntax. The command will replace <em>%in_file</em> and <em>%out_file</em> with the generated files. Please note, you can not use | or > in your commands.'),
     '#default_value' => $configuration['ffmpeg_video_custom_command'] ? $configuration['ffmpeg_video_custom_command'] : '-i %in_file %out_file',
   );
 
