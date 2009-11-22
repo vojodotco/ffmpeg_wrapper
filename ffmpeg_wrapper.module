@@ -817,7 +817,7 @@ function ffmpeg_wrapper_padded_size($file, $size, $return = 'padding') {
 
     // Determine source file's dimensions and proportions.
     $info = ffmpeg_wrapper_file_data($file);
-    if ($info) {
+    if ($info && isset($info['video'])) {
       list($orig_x, $orig_y) = explode('x', $info['video']['s']);
       $orig_q = $orig_x / $orig_y;
 
