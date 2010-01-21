@@ -255,14 +255,14 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
   if (empty($ffmpeg_object)) {
     $ffmpeg_object = new stdClass();
   }
-  
+
   // Create some exceptions for dealing with pipes and semicolons
   $pattern = array('\;', '\|');
   $replace = array(';', '|');
-  
+
   // Escape our command, but make sure that we allow | and ;
   $ffmpeg_object->command = str_replace($pattern, $replace, escapeshellcmd($path .' '. $command));
-  
+
   $ffmpeg_object->cwd = getcwd();
 
   // does binary exist?
@@ -516,7 +516,10 @@ function ffmpeg_wrapper_output_formats() {
   $cache = cache_get($cache_id, 'cache');
   if (!isset($cache->data)) {
     // get all the encoding options
-    $outputs = ffmpeg_wrapper_get_file_formats('encode');
+    if (! $outputs = ffmpeg_wrapper_get_file_formats('encode')) {
+    	watchdog('ffmpeg_wrapper', 'No output formats found. Path to ffmpeg is probably wrong', array(), WATCHDOG_ERROR);
+    	return array();
+    }
     // rebuild as a select array
     $formats = array(t('Select output type'));
     foreach ($outputs as $output) {
@@ -935,6 +938,9 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
     '/Error while opening codec for output stream.*/i',
     // match: I/O error occured
     '/I\/O error occured/i',
+    '/Failed to add video hook function*/i',
+    '/ffmpeg: unrecognized option*/i',
+    '/Could not open */i',
   );
 
   // check for error conditions
