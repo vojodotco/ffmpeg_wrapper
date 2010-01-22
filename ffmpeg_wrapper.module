@@ -270,11 +270,23 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
     return false;
   }
 
-  // run the command
-  ob_start();
-    passthru($ffmpeg_object->command." 2>&1", $command_return);
-    $ffmpeg_object->output = ob_get_contents();
-  ob_end_clean();
+  $descriptor_spec = array(
+     0 => array('pipe', 'r'),
+     1 => array('pipe', 'w'),
+     2 => array('pipe', 'w')
+  );
+
+  $pipes = array();
+  $process = proc_open($ffmpeg_object->command, $descriptor_spec, $pipes, null, null, array('binary_pipes' => true));
+  if (is_resource($process)) {
+    fclose($pipes[0]);
+    $ffmpeg_object->output = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $ffmpeg_object->output .= stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $command_return = proc_close($process);
+  }
+
 
   // Find the output file in the command if there was one.
   // This is sort of hacky but is helpful for passing the file out.
