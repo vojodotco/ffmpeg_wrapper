@@ -135,7 +135,6 @@ function ffmpeg_wrapper_theme() {
  * Build the admin form.
  */
 function ffmpeg_wrapper_admin() {
-  print '[path' . ffmpeg_wrapper_path_to_vhook('watermark.so');
   // always clear caches when if settings are updated
   cache_clear_all('ffmpeg_wrapper_codecs', 'cache');
   cache_clear_all('ffmpeg_wrapper_output_formats', 'cache');
