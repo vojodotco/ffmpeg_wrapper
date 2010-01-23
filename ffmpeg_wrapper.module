@@ -135,6 +135,7 @@ function ffmpeg_wrapper_theme() {
  * Build the admin form.
  */
 function ffmpeg_wrapper_admin() {
+  print '[path' . ffmpeg_wrapper_path_to_vhook('watermark.so');
   // always clear caches when if settings are updated
   cache_clear_all('ffmpeg_wrapper_codecs', 'cache');
   cache_clear_all('ffmpeg_wrapper_output_formats', 'cache');
@@ -995,7 +996,8 @@ function ffmpeg_wrapper_error_check(&$ffmpeg_object, $watchdog = true) {
  *   A full path.
  */
 function ffmpeg_wrapper_path_to_vhook($name) {
-  if ($path = file_exists(variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/') . $name)) {
+  $path = variable_get('ffmpeg_wrapper_vhook', '/usr/local/lib/vhook/') . $name;
+  if (file_exists($path)) {
     return $path;
   }
 }
