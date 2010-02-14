@@ -1,0 +1,5 @@
+; $Id$
+name = FFmpeg Wrapper UI
+description = User Interface for FFmpeg Wrapper
+core = 6.x
+dependencies[] = ffmpeg_wrapper
