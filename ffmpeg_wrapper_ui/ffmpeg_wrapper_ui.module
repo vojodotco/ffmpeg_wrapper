@@ -50,6 +50,16 @@ function ffmpeg_wrapper_ui_menu() {
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
   );
+  // Provides the transcoding form via ajax
+  $items['ffmpeg_wrapper/ajax/%node/%'] = array (
+    'title' => 'Test Convert File',
+    'page callback' => 'ffmpeg_wrapper_node_convert_ajax',
+    'page arguments' => array(2, 3),
+    'access callback' => 'ffmpeg_wrapper_ui_access',
+    'access arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -93,17 +103,30 @@ function ffmpeg_wrapper_ui_form_alter(&$form, $form_state, $form_id) {
       if (is_array($file)) {
         // can ffmpeg decode this?
         if (ffmpeg_wrapper_can_decode($file['filepath']['#value'])) {
-          $arguments = array();
-          // are we on a node page? Add a $nid to the arguments
-          if ($nid = $form['#node']->nid) { $arguments[] = "nid=$nid"; }
-          // we need a path to the file to the arguments
-          $arguments[] = 'path='. $file['filepath']['#value'];
-           // create the link for test conversion
-          $link = '<br />'. l(t('Test convert file with FFmpeg'), "node/$nid/ffmpeg/$fid");
+          $nid = $form['#node']->nid;
+          // create the link for test conversion
+          $link = '<br />'. l(t('Test convert file with FFmpeg'), "node/$nid/ffmpeg/$fid", array(
+            'attributes' => array(
+              'class' => 'ffmpeg_convert',
+              'nid' => $nid,
+              'fid' => $fid,
+             )));
           // now we alter the description of this item
           $form['attachments']['wrapper']['files'][$fid]['description']['#description'] .= $link;
         }
       }
+    }
+    // If there are files that can be transcoded, add a container that we can
+    // insert ajax data into
+    if ($link) {
+      drupal_add_js(drupal_get_path('module', 'ffmpeg_wrapper_ui') .'/ffmpeg_wrapper_ui.js');
+      drupal_add_css(drupal_get_path('module', 'ffmpeg_wrapper_ui') .'/ffmpeg_wrapper_ui.css');
+      $form += array('ffmpeg' => ffmpeg_wrapper_ui_node_convert_form($form_state, $form['#node'], 10));
+      $form['ffmpeg']['#type'] = 'markup';
+      $form['ffmpeg']['#value'] = '';
+      $form['ffmpeg']['#prefix'] = '<div id="ffmpeg_convert">';
+      $form['ffmpeg']['#suffix'] = '</div><div id="ffmpeg_convert_background"></div>';
+      // ap($form['ffmpeg']);
     }
   }
 }
@@ -157,6 +180,13 @@ function ffmpeg_wrapper_ui_node_convert_form($form_state, $node, $fid) {
     drupal_set_message(t('Requested file was not found'));
     drupal_not_found();
   }
+  // Now check to see that the $fid is on the node - extra
+  // security measure
+  if (! $node->files[$fid]) {
+    drupal_set_message(t('Requested file does not belong to this node'));
+    drupal_not_found();
+  }
+
   drupal_set_title(t('Transcoding !file for: !title', array('!file' => basename($filepath), '!title' => $node->title)));
 
   $form = array();
@@ -609,6 +639,26 @@ function ffmpeg_wrapper_ui_attach_file($form, $form_state) {
   drupal_set_message(t('Attached your transcoded file'));
   drupal_goto('node/'. $node->nid .'/edit');
 }
+
+
+/**
+ * Helper function to display an ajax version of this form
+ * @param $node
+ *   object, drupal node object
+ * @param $fid
+ *   int, drupal file id
+ * @return unknown_type
+ */
+function ffmpeg_wrapper_node_convert_ajax($node, $fid) {
+  $form = drupal_get_form('ffmpeg_wrapper_node_convert_ajax_form', $node, $fid);
+  print ($form);
+  exit;
+}
+
+function ffmpeg_wrapper_node_convert_ajax_form($form_state, $node, $fid) {
+  return ffmpeg_wrapper_ui_node_convert_form($form_state, $node, $fid);
+}
+
 
 
 /**
