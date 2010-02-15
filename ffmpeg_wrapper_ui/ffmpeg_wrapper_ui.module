@@ -50,24 +50,6 @@ function ffmpeg_wrapper_ui_menu() {
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
   );
-  // Transfers a transcoded file
-  $items['ffmpeg_wrapper/file/%node/%'] = array (
-    'title' => 'Return file',
-    'page callback' => 'ffmpeg_wrapper_ui_get_file',
-    'page arguments' => array(2, 3),
-    'access callback' => 'ffmpeg_wrapper_ui_access',
-    'access arguments' => array(2),
-    'type' => MENU_CALLBACK,
-  );
-  // Transfers a transcoded file
-  $items['ffmpeg_wrapper/file/%node/%'] = array (
-    'title' => 'Return file',
-    'page callback' => 'ffmpeg_wrapper_ui_get_file',
-    'page arguments' => array(2, 3),
-    'access callback' => 'ffmpeg_wrapper_ui_access',
-    'access arguments' => array(2),
-    'type' => MENU_CALLBACK,
-  );
   return $items;
 }
 
@@ -217,84 +199,42 @@ function ffmpeg_wrapper_ui_node_convert_form($form_state, $node, $fid) {
     '#type' => 'fieldset',
     '#title' => t('Conversion data'),
   );
-  // Keep track of the transcoded file
-  $form['converted']['data']['destination'] = array(
-    '#type' => 'value',
-    '#value' => $form_state['storage']['ffmpeg_wrapper']->output_file,
-  );
-  // If there are errors, display the errors but not the output file
-  if ($form_state['storage']['ffmpeg_wrapper']->errors) {
-    $title = '<h3>' . t('There were errors during the conversion!!') . '</h3>';
-    $form['converted']['data']['display'] = array(
-      '#type' => 'markup',
-      '#value' => $title . t('Errors found: !errors', array('!errors' => implode('<br />', $form_state['storage']['ffmpeg_wrapper']->errors))),
-      '#suffix' => '<br />',
-    );
-  }
-  else {
-    $title = '<h3>' . t('Your file was successfully transcoded!') . '</h3>';
-    $form['converted']['data']['display'] = array(
-      '#type' => 'markup',
-      '#value' => $title . t('<b>Output file is:</b> !file', array('!file' => basename($form_state['storage']['ffmpeg_wrapper']->output_file))),
-      '#suffix' => '<br />',
-    );
-    /*
-    // Download this file
-    $form['converted']['data']['download'] = array(
-      '#value' => t('Download'),
-      '#type' => 'submit',
-     // '#submit' => array('ffmpeg_wrapper_ui_get_file'),
-      '#ahah' => array(
-        'path' => 'ffmpeg/file',
-        'wrapper' => 'transcode-wrapper',
-        'event' => 'click',
-        'method' => 'append',
-        'progress' => array('type' => 'bar', 'message' => t('Preparing download, please wait...')),
-       )
-    );
-  */
 
-    // Download this file
-    $form['converted']['data']['attach'] = array(
-      '#value' => t('Attach'),
-      '#type' => 'submit',
-      '#submit' => array('ffmpeg_wrapper_ui_attach_file'),
-    );
-
-    // Filepath for this file
-    $form['converted']['data']['attach_file'] = array(
-      '#value' => '',
-      '#type' => 'value',
-    );
-
-
-   $form['converted']['data']['url'] = array(
-      '#type' => 'markup',
-      '#value' => '',
-   );
-
-
-
-  }
-  $form['converted']['data']['command'] = array(
+  // Display the transcoding status
+  $form['converted']['data']['display'] = array(
     '#type' => 'markup',
-    '#value' => t('<b>Command run was:</b> !command', array('!command' => $form_state['storage']['ffmpeg_wrapper']->command)),
+    '#value' => '',
     '#suffix' => '<br />',
   );
+
+  // Attach this file back to the node
+  $form['converted']['data']['attach'] = array(
+    '#value' => t('Attach'),
+    '#type' => 'submit',
+    '#submit' => array('ffmpeg_wrapper_ui_attach_file'),
+  );
+
+   // Download this file
+  $form['converted']['data']['download'] = array(
+    '#value' => t('Download'),
+    '#type' => 'submit',
+    '#submit' => array('ffmpeg_wrapper_ui_download_file'),
+  );
+
   $form['converted']['data']['ffmpeg_output'] = array(
     '#type' => 'fieldset',
     '#title' => t('FFmpeg Output'),
     '#collapsible' => true,
     '#collapsed' => true,
   );
+  $form['converted']['data']['ffmpeg_output']['command'] = array(
+    '#type' => 'markup',
+    '#value' => '',
+    '#suffix' => '<br />',
+  );
   $form['converted']['data']['ffmpeg_output']['output'] = array(
     '#type' => 'markup',
-    '#value' => '<pre>'. $form_state['storage']['ffmpeg_wrapper']->output .'</pre>',
-  );
-  $form['converted']['data']['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Attach transcoded file to node'),
-    '#submit' => array('ffmpeg_wrapper_ui_attach_transcoded_file'),
+    '#value' => '',
   );
 
   // Get the FFmpeg configuration form
@@ -563,8 +503,6 @@ function ffmpeg_wrapper_ui_js() {
   // Get the portion of the form we will populate
   $converted = $form['converted']['data'];
 
-  // Keep track of the transcoded file
-  $converted['destination']['#value'] = $ffmpeg_object->output_file;
   // Display the the file data
   if ($ffmpeg_object->errors) {
     $title = '<h3>' . t('There were errors during the conversion!!') . '</h3>';
@@ -579,45 +517,16 @@ function ffmpeg_wrapper_ui_js() {
     ));
   }
   // Return the command
-  $converted['command']['#value'] =  t('Command run was: !command', array(
+  $converted['ffmpeg_output']['command']['#value'] =  t('Command run was: !command', array(
     '!command' => $ffmpeg_object->command)
   );
   // FFmpeg output
   $converted['ffmpeg_output']['output']['#value'] = '<pre>'. $ffmpeg_object->output .'</pre>';
 
-  // Set the path for the download
-  $converted['url']['#value'] = '<strong>' . t('Download:') . '</strong>' . l(
-    basename($ffmpeg_object->output_file),
-    'ffmpeg/file/' . $form_state['values']['nid'] . '/' . basename($ffmpeg_object->output_file)
-  );
-
   // This populates the transcoded form with data
   $output = theme('status_messages') . drupal_render($converted);
   print drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit();
-}
-
-
-function ffmpeg_wrapper_ui_node_convert_form_submit($form, $form_state) {
-  //
-
-  // is in drupal temp directory
-  // $form_state['storage']['ffmpeg_object'] = ffmpeg_wrapper_convert_file($form_state['values']);
-
- // ap($form_state);
-   ap('submit');
-
-  // Should we let the user download the file?
-  if ($form_state['clicked_button']['#value'] == t('Download') ) {
-   // ap('sending file');
-    // Get the file path from storage
-   // $filepath = $form_state['storage']['ffmpeg_object']->output_file;
-    // ap($form_state);
-    //header('Content-Type: application/octet-stream"');
-    //header('Content-Disposition: attachment; filename="' . basename($filepath) . '";');
-    //file_transfer($filepath, $headers);
-  }
- // $form_state['rebuild'] = true;
 }
 
 
@@ -633,18 +542,20 @@ function ffmpeg_wrapper_ui_node_convert_form_submit($form, $form_state) {
  *   string, name of the file to transfer
  * @return unknown_type
  */
-function ffmpeg_wrapper_ui_get_file($node, $filename) {
-
-  $filepath = file_directory_temp() .'/' . $filename;
+function ffmpeg_wrapper_ui_download_file($form, $form_state) {
+  // Get the file path from the form
+  $filepath = $form_state['storage']['ffmpeg_object']->output_file;
 
   // Make sure that we are looking for a file in the correct place-
   // attempt to prevent exploits
-  if (! file_check_location($filepath)) {
+  if (! file_exists($filepath)) {
     exit();
   }
 
-  $headers[] = 'Content-Type: application/octet-stream"';
-  $headers[] = 'Content-Disposition: attachment; filename="' . basename($form_state['values']['destination']) . '";';
+  $headers[] = 'Content-Type: ' . file_get_mimetype($filepath);
+  $headers[] = 'Content-Description: File Transfer';
+  $headers[] = 'Content-Disposition: attachment; filename="' . basename($filepath) . '";';
+  $headers[] = 'Content-Transfer-Encoding: binary';
   file_transfer($filepath, $headers);
   exit();
 }
@@ -665,6 +576,7 @@ function ffmpeg_wrapper_ui_get_file($node, $filename) {
 function ffmpeg_wrapper_ui_attach_file($form, $form_state) {
   // Get the file path from the form
   $filepath = $form_state['storage']['ffmpeg_object']->output_file;
+
   // Make sure the file exists
   if (! file_exists($filepath)) {
     drupal_set_message(t('Transcoded file does not exists.', 'error'));
