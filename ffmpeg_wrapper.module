@@ -421,12 +421,12 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
   if (!isset($cache->data)) {
     $data = array();
     // get formats from ffmpeg
-    $output = ffmpeg_wrapper_run_command('-formats');
+    $output = ffmpeg_wrapper_run_command('-codecs');
 
     // parse the list
     // we know where the codecs are by looking at the output of ffmpeg -formats
-    $codecs_formats_pos = strpos($output, "Codecs:");
-    $codecs_formats_pos_end = strpos($output, "Supported file protocols:");
+    $codecs_formats_pos = strpos($output, 'Codecs:');
+    $codecs_formats_pos_end = strpos($output, 'Note:');
     $codecs = substr($output, $codecs_formats_pos, ($codecs_formats_pos_end - $codecs_formats_pos));
     // remove the extra text
     $codecs = str_replace('Codecs:', '', $codecs);
@@ -610,8 +610,8 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     }
     // slice up the format output
     $startpos = strpos($formats, 'File formats:');
-    $endpos = strpos($formats, 'Codecs:');
-    $formats = substr($formats, $startpos, $endpos - $startpos);
+    $endpos = strpos($formats, 'FFmpeg version');
+    $formats = substr($formats, $startpos, $endpos - $startfpos);
     //remove the header
     $formats = str_replace('File formats:', '', $formats);
 
