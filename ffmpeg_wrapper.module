@@ -172,7 +172,7 @@ function ffmpeg_wrapper_admin() {
     $form['ffmpeg_wrapper']['ffmpeg_wrapper_about']['ffmpeg_wrapper_version'] = array(
       '#type' => 'item',
       '#title' => t('FFmpeg version'),
-      '#value' =>  '<blockquote>'. ffmpeg_wrapper_run_command('-v') .'</blockquote>',
+      '#value' =>  '<blockquote>'. ffmpeg_wrapper_get_version('string') .'</blockquote>',
       '#description' => t('Version of FFmpeg running on your system'),
     );
 
@@ -420,13 +420,19 @@ function ffmpeg_wrapper_get_codecs($return = 'rows') {
   $cache = cache_get($cache_id, 'cache');
   if (!isset($cache->data)) {
     $data = array();
-    // get formats from ffmpeg
-    $output = ffmpeg_wrapper_run_command('-codecs');
-
-    // parse the list
-    // we know where the codecs are by looking at the output of ffmpeg -formats
-    $codecs_formats_pos = strpos($output, 'Codecs:');
-    $codecs_formats_pos_end = strpos($output, 'Note:');
+    // we know where the codecs are by looking at the output of ffmpeg -formats or ffmpeg -codecs
+    // depending of version SVN-r > 20561 or version > 0.5
+    $ffmpeg_version = ffmpeg_wrapper_get_version('svn');
+    if ( ((int)$ffmpeg_version >= 20561) || ((float)$ffmpeg_version > 0.5)  ) {
+      $output = ffmpeg_wrapper_run_command('-codecs');
+      $codecs_formats_pos = strpos($output, 'Codecs:');
+      $codecs_formats_pos_end = strpos($output, 'Note,');
+    }
+    else {
+      $output = ffmpeg_wrapper_run_command('-formats');
+      $codecs_formats_pos = strpos($output, 'Codecs:');
+      $codecs_formats_pos_end = strpos($output, 'Supported file protocols:');
+    }
     $codecs = substr($output, $codecs_formats_pos, ($codecs_formats_pos_end - $codecs_formats_pos));
     // remove the extra text
     $codecs = str_replace('Codecs:', '', $codecs);
@@ -610,8 +616,15 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     }
     // slice up the format output
     $startpos = strpos($formats, 'File formats:');
-    $endpos = strpos($formats, 'FFmpeg version');
-    $formats = substr($formats, $startpos, $endpos - $startfpos);
+    // depending of version SVN-r > 20561 or version > 0.5 string changes
+    $ffmpeg_version = ffmpeg_wrapper_get_version('svn');
+    if ( ((int)$ffmpeg_version >= 20561) || ((float)$ffmpeg_version > 0.5)  ) {
+      $endpos = strpos($formats, 'FFmpeg version');
+    } 
+    else {
+      $endpos = strpos($formats, 'Codecs:');
+    }
+    $formats = substr($formats, $startpos, $endpos - $startpos);
     //remove the header
     $formats = str_replace('File formats:', '', $formats);
 
@@ -674,6 +687,36 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
   return $output[$ret];
 }
 
+/**
+ * Get FFMpeg version
+ *
+ * @param $format
+ *   (string/version/svn)
+ * @return
+ *   Version string.
+ */
+function ffmpeg_wrapper_get_version($format) {
+  // get string from ffmpeg and return it if it is enough
+  $version = ffmpeg_wrapper_run_command('-version');
+  if ($format == 'string') {
+    return $version;
+  }
+  //anything else return the version string or SVN-r
+  // slice up the version output
+  $startpos = strpos($version, 'FFmpeg version ') +15;
+  $endpos = strpos($version, ', Copyright');
+  $version_number = substr($version, $startpos, $endpos - $startpos);
+  if ($format == 'version') {
+    return $version_number;
+  }
+  // is FALSE if the string is not found
+  if (strpos($version_number, 'SVN-r') == 0) {
+    $version_release = substr($version_number, 5);
+    return $version_release;
+  }
+  // then is a full release version as 0.5
+  return $version_number;
+}
 
 /**
  * Get the duration of a video.
