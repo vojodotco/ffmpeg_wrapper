@@ -277,7 +277,7 @@ function ffmpeg_wrapper_run_command($command = '', $error_check = true, $path = 
   );
 
   $pipes = array();
-  $process = proc_open($ffmpeg_object->command, $descriptor_spec, $pipes, null, null, array('binary_pipes' => true));
+  $process = proc_open($ffmpeg_object->command, $descriptor_spec, $pipes, $ffmpeg_object->cwd , null, array('binary_pipes' => true));
   if (is_resource($process)) {
     fclose($pipes[0]);
     $ffmpeg_object->output = stream_get_contents($pipes[1]);
@@ -620,7 +620,7 @@ function ffmpeg_wrapper_get_file_formats($ret = 'row') {
     $ffmpeg_version = ffmpeg_wrapper_get_version('svn');
     if ( ((int)$ffmpeg_version >= 20561) || ((float)$ffmpeg_version > 0.5)  ) {
       $endpos = strpos($formats, 'FFmpeg version');
-    } 
+    }
     else {
       $endpos = strpos($formats, 'Codecs:');
     }
