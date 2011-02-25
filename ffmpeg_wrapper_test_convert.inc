@@ -1,6 +1,5 @@
 <?php
 
-// $Id$
 
 /**
  * @FILE This file provides the transcoding testing capabilities

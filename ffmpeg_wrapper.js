@@ -1,4 +1,3 @@
-// $Id$;
 
 /**
  * @param string $prefix is the prefix of the elements

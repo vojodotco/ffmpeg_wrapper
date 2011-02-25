@@ -1,6 +1,5 @@
 <?php
 
-/* $Id$ */
 
 // This implements a wrapper for FFmpeg so that we don't have to reinvent the
 // the wheel every time we want to do something with video, audio, or images
