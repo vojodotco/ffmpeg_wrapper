@@ -724,7 +724,7 @@ function ffmpeg_wrapper_get_version($format) {
     return $matches[1];
   }
   // is FALSE if the string is not found
-  if (strpos($version_number, 'SVN-r') == 0) {
+  if (strpos($version_number, 'SVN-r') === 0) {
     $version_release = substr($version_number, 5);
     return $version_release;
   }
