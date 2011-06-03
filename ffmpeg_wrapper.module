@@ -363,6 +363,7 @@ function ffmpeg_wrapper_can_decode($path, $types = array('video', 'audio')) {
   $file_data = ffmpeg_wrapper_file_data($path);
 
   // Issue http://drupal.org/node/479972
+  $codec = ffmpeg_wrapper_get_codecs('decode');
   foreach (array('video', 'audio') as $media) {
     // some files have multiple formats attached to them
     foreach(explode(',', $file_data[$media]['codec']) as $type) {
